@@ -1,0 +1,13 @@
+.onnx
+.pth
+.pt
+.tflite
+.pb
+.ckpt
+.tf
+.h5
+
+autotuner_records.json
+
+Dockerfile
+.DS_Store
