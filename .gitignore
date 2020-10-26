@@ -11,3 +11,6 @@ autotuner_records.json
 
 Dockerfile
 .DS_Store
+
+.pkl_memoize_py3
+__pycache__

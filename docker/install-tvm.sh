@@ -35,4 +35,6 @@ make -j4
 
 # Install python dependencies
 cd ../python
+pip3 install --upgrade pip setuptools
 pip3 install -e .[extra_feature]
+pip3 install torch==1.4.0
