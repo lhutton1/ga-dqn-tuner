@@ -8,6 +8,7 @@
 .h5
 
 autotuner_records.json
+results/
 
 Dockerfile
 .DS_Store

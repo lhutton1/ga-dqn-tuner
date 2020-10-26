@@ -24,6 +24,7 @@ cd build
 cat > config.cmake <<EOF
 set(USE_RPC ON)
 set(USE_GRAPH_RUNTIME ON)
+set(USE_GRAPH_RUNTIME_DEBUG ON)
 set(USE_LLVM ON)
 set(USE_RANDOM ON)
 set(USE_SORT ON)
@@ -37,4 +38,7 @@ make -j4
 cd ../python
 pip3 install --upgrade pip setuptools
 pip3 install -e .[extra_feature]
-pip3 install torch==1.4.0
+pip3 install -e .[test]
+pip3 install packaging
+pip3 install torch>=1.4.0
+pip3 install torchvision>=0.5.0

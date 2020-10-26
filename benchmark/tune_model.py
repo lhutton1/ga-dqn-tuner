@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import json
 import logging
@@ -75,7 +76,7 @@ if __name__ == '__main__':
     with open('config.json') as json_file:
         data = json.load(json_file)
         target_string = data['target']
-        tune_settings = data['autotuner-settings']
+        tune_settings = data['autotuner_settings']
 
         for model in data['models']:
             trace, input_shapes = get_model(model['name'], model['type'])
