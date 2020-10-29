@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import torch
-import torchvision
 
 
 def load_torchvision(model_name):
     """Given a model name, returns a Torchvision model in eval mode as well
     as an example input."""
+    import torchvision
+
     with torch.no_grad():
         if model_name.startswith("inception"):
             height = width = 299
@@ -43,11 +44,32 @@ def load_pretrainedmodels(model_name):
     return model, [input_data]
 
 
+def load_torchtransformers(model_name):
+    """Given a model name, returns a pytorch transformers model in eval
+    mode. Provided by HuggingFace: https://github.com/huggingface/transformers """
+    import pytorch_transformers
+
+    if model_name == "bert":
+        tokenizer = pytorch_transformers.BertTokenizer.from_pretrained('bert-base-uncased')
+        model = pytorch_transformers.BertModel.from_pretrained('bert-base-uncased', torchscript=True)
+        input_data = torch.tensor([tokenizer.encode(text="Here is some text to encode", add_special_tokens=True)])
+    elif model_name == "transformer_xl":
+        tokenizer = pytorch_transformers.TransfoXLTokenizer.from_pretrained('transfo-xl-wt103')
+        model = pytorch_transformers.TransfoXLModel.from_pretrained('transfo-xl-wt103', torchscript=True)
+        input_data = torch.tensor([tokenizer.encode(text="Here is some text to encode", add_special_tokens=True)])
+    else: 
+        raise ValueError('Model name unknown.')
+
+    return model, [input_data]
+
+
 def get_model(model_name, type, input_data=[]):
     """Assert that the output of a compiled model matches with that of its
     baseline."""
     if type == "torchvision":
         baseline_model, baseline_input = load_torchvision(model_name)
+    elif type == "torchtransformers":
+        baseline_model, baseline_input = load_torchtransformers(model_name)
     else:
         assert False, "Unexpected type"
 

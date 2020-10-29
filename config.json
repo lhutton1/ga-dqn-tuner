@@ -1,19 +1,24 @@
 { 
     "models": [
         {
+            "name": "transformer_xl",
+            "type": "torchtransformers"
+        },
+        {
             "name": "mobilenet_v2",
-            "type": "torchvision",
-            "input_shape": [1, 3, 224, 224]
+            "type": "torchvision"
         },
         {
             "name": "resnet18",
-            "type": "torchvision",
-            "input_shape": [1, 3, 224, 224]
+            "type": "torchvision"
         },
         {
             "name": "inception_v3",
-            "type": "torchvision",
-            "input_shape": [1, 3, 299, 299]
+            "type": "torchvision"
+        },
+        {
+            "name": "bert",
+            "type": "torchtransformers"
         }
     ],
     "autotuner_settings": {
@@ -28,7 +33,7 @@
         "profile": true,
         "device": "cpu",
         "fill_mode": "random",
-        "repeat": 10
+        "repeat": 4
     },
     "target": "llvm"
 }
