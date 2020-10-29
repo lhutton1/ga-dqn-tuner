@@ -10,7 +10,6 @@
 autotuner_records.json
 results/
 
-Dockerfile
 .DS_Store
 
 .pkl_memoize_py3
