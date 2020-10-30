@@ -1,14 +1,11 @@
+In order to support running benchmarks on ARC we use singularity.
+
 Build image:
 ```
-docker build --tag benchmark-tvm:1.0 .
+./create-image.sh
 ```
 
 Create container:
 ```
-docker run -v="$(pwd)":/workspace -w=/workspace -it benchmark-tvm:1.0 bash
-```
-
-Enter container:
-```
-docker exec -w=/workspace -it container_name bash
+./create-continer.sh
 ```

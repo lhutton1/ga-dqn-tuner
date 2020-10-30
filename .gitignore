@@ -7,6 +7,9 @@
 .tf
 .h5
 
+.simg
+.save
+
 autotuner_records.json
 results/
 
