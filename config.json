@@ -1,10 +1,6 @@
 { 
     "models": [
         {
-            "name": "transformer_xl",
-            "type": "torchtransformers"
-        },
-        {
             "name": "mobilenet_v2",
             "type": "torchvision"
         },
@@ -31,9 +27,9 @@
     },
     "run_settings": {
         "profile": true,
-        "device": "cpu",
+        "device": "gpu",
         "fill_mode": "random",
         "repeat": 4
     },
-    "target": "llvm"
+    "target": "cuda"
 }
