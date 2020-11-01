@@ -1,5 +1,19 @@
+import json
+import os
+import logging
+import time
+
+import numpy as np
+
+import tvm
+from tvm import autotvm
+from tvm import relay
+from tvm import rpc
+from tvm.contrib import util
+
 from tune_model import tune_model
 from benchmark_model import compile_model, run_model
+from get_model import get_model
 
 if __name__ == "__main__":
     with open('config.json') as json_file:
@@ -13,7 +27,7 @@ if __name__ == "__main__":
             print(f"Tuning model {model['name']}")
             tune_model(mod, params, tune_settings, target_string)
 
-	run_settings = data['run_settings']
+        run_settings = data['run_settings']
 
         for model in data['models']:
             for apply_tuning in [True, False]:
