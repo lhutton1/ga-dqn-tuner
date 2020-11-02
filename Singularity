@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: nvidia/cuda:11.1-cudnn8-devel-ubuntu18.04
+From: nvidia/cuda:10.1-cudnn8-devel-ubuntu18.04
 
 
 %post
@@ -85,17 +85,17 @@ python3 -m pip install --upgrade pip setuptools
 python3 -m pip install -e .[extra_feature]
 python3 -m pip install -e .[test]
 python3 -m pip install packaging
-python3 -m pip install torch>=1.4.0
-python3 -m pip install torchvision>=0.5.0
+python3 -m pip install torch==1.6.0 torchvision==0.7.0 -f https://download.pytorch.org/whl/cu101/torch_stable.html
 
 # Cuda paths
 export PATH=/usr/local/nvidia/bin:${PATH}
 export PATH=/usr/local/cuda/bin:${PATH}
 export CPLUS_INCLUDE_PATH=/usr/local/cuda/include:${CPLUS_INCLUDE_PATH}
 export C_INCLUDE_PATH=/usr/local/cuda/include:${C_INCLUDE_PATH}
-export LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/compact:${LIBRARY_PATH}
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/compact:${LD_LIBRARY_PATH}
+export LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/compat:${LIBRARY_PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/compat:${LD_LIBRARY_PATH}
 export CUDA_HOME="/usr/local/cuda"
+export CUDA_PATH="/usr/local/cuda"
 
 
 %runscript
