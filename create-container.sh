@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo singularity shell --nv -C benchmark-tvm.simg
+singularity shell --nv --containall --bind=/home/luke/benchmark-tvm/:/benchmark-tvm --pwd=/benchmark-tvm -H=/home/luke/benchmark-tvm/ benchmark-tvm.simg
