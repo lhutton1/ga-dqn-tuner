@@ -1,6 +1,6 @@
 #$ -V -cwd
-#$ -l h_rt=00:01:00
-#$ -l coproc_v100=2
+#$ -l h_rt=00:10:00
+#$ -l coproc_v100=1
 #$ -m be
 
 # Load modules
@@ -17,11 +17,11 @@ NO_BACKUP_DIR="/nobackup/sc17ljth"
 PROJECT_DIR="${NO_BACKUP_DIR}/benchmark-tvm"
 TVM_IMG="${PROJECT_DIR}/benchmark-tvm.simg"
 
-SCRIPT_TO_RUN="${PROJECT_DIR}/benchmark/tune_and_benchmark.py"
+SCRIPT_TO_RUN="${PROJECT_DIR}/benchmark/tune_model.py"
 SCRIPT_ARGS=""
 
 echo "Starting script..."
 echo "Swapping to ${PROJECT_DIR}"
 cd ${PROJECT_DIR}
-singularity exec --nv -H ${NO_BACKUP_DIR} ${TVM_IMG} python3 ${SCRIPT_TO_RUN} ${SCRIPT_ARGS}
+singularity exec --nv --containall --bind ${PROJECT_DIR}:/benchmark-tvm --pwd /benchmark-tvm -H ${PROJECT_DIR} ${TVM_IMG} python3 ${SCRIPT_TO_RUN} ${SCRIPT_ARGS}
 echo "Finished script."
