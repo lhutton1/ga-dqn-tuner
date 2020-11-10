@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import time
 
 import tvm
 from tvm import relay
@@ -10,6 +11,7 @@ from tvm.contrib import util
 from tvm.contrib import graph_runtime as runtime
 from tvm.contrib.debugger import debug_runtime
 import numpy as np
+import torch
 
 from get_model import get_model
 
@@ -95,6 +97,16 @@ def generate_tensor_data(shape, dtype, fill_mode):
     return tensor
 
 
+def generate_pytorch_data(input_shapes, fill_mode):
+    """ Create pytorch data tensors. """
+    data = []
+    for input_shape in input_shapes:
+        if fill_mode == "random":
+            data.append(torch.randn(input_shape))
+        else:
+            raise ValueError(f"fill mode {fill_mode} not supported.")
+
+
 def make_inputs_dict(shape_dict, dtype_dict, fill_mode):
     """Make the inputs dictionary for a graph.
 
@@ -142,8 +154,23 @@ def make_inputs_dict(shape_dict, dtype_dict, fill_mode):
 
     return inputs_dict
 
+def extract_profile_data(times):
+    """Provided a series of execution times calculate the mean, std, max and min. """
+    mean_ts = np.mean(times)
+    std_ts = np.std(times)
+    max_ts = np.max(times)
+    min_ts = np.min(times)
+
+    header = "Execution time summary:\n{0:^10} {1:^10} {2:^10} {3:^10}".format(
+        "mean (s)", "max (s)", "min (s)", "std (s)"
+    )
+    stats = "{0:^10.5f} {1:^10.5f} {2:^10.5f} {3:^10.5f}".format(mean_ts, max_ts, min_ts, std_ts)
+
+    return header, stats
+
 
 def compile_model(mod, params, target_string, tuning_records=None):
+    """ Compile TVM model. Apply tuning records if they exist. """
     target = tvm.target.Target(target_string)
     target_host = "llvm"
 
@@ -158,7 +185,8 @@ def compile_model(mod, params, target_string, tuning_records=None):
     return graph_module.get_json(), graph_module.get_lib(), graph_module.get_params()
 
 
-def run_model(graph, lib, params, run_settings, model_name, tuning_records=None):
+def run_model_tvm(graph, lib, params, run_settings, model_name, tuning_records=None):
+    """ Run TVM model. Apply tuning records if they exist. """
     profile = run_settings['profile']
     device = run_settings['device']
     fill_mode = run_settings['fill_mode']
@@ -193,18 +221,35 @@ def run_model(graph, lib, params, run_settings, model_name, tuning_records=None)
     timer = module.module.time_evaluator("run", ctx, 1, repeat=repeat)
     prof_result = timer()
     times = prof_result.results
-    
-    mean_ts = np.mean(times)
-    std_ts = np.std(times)
-    max_ts = np.max(times)
-    min_ts = np.min(times)
-
-    header = "Execution time summary:\n{0:^10} {1:^10} {2:^10} {3:^10}".format(
-        "mean (s)", "max (s)", "min (s)", "std (s)"
-    )
-    stats = "{0:^10.5f} {1:^10.5f} {2:^10.5f} {3:^10.5f}".format(mean_ts, max_ts, min_ts, std_ts)
+    header, stats = extract_profile_data(times)
 
     filename = f'results/stat_table_{model_name}_tuned={is_tuned}'
+    with open(filename, 'w') as f:
+        print("%s\n%s\n" % (header, stats), filename, file=f)
+    print("%s\n%s\n" % (header, stats))
+
+
+def run_model_pytorch(trace, input_shapes, run_settings, model_name):
+    """ Run model using the standard pytorch runtime. """
+    profile = run_settings['profile']
+    device = run_settings['device']
+    fill_mode = run_settings['fill_mode']
+    repeat = run_settings['repeat']
+
+    generated_data = generate_pytorch_data(input_shapes, fill_mode)
+    # first run is always slower due to on the fly optimization, skip it.
+    skip_first_run = True
+    times = []
+    for run in range(repeat + 1):
+        start = time.time()*1000
+        model(generated_data)
+        if skip_first_run:
+            times.append(time.time()*1000 - start)
+            skip_first_run = False
+
+    header, stats = extract_profile_data(times)
+
+    filename = f'result/stat_table_{model_name}_pytorch'
     with open(filename, 'w') as f:
         print("%s\n%s\n" % (header, stats), filename, file=f)
     print("%s\n%s\n" % (header, stats))
@@ -218,18 +263,18 @@ if __name__ == '__main__':
         run_settings = data['run_settings']
 
         for model in data['models']:
-            for apply_tuning in [True, False]:
+            for executor in ["tvm", "pytorch"]:
                 trace, input_shapes = get_model(model['name'], model['type'])
-                mod, params = relay.frontend.from_pytorch(trace, input_shapes)
 
-                print(f"Compiling model {model['name']}")
-                if apply_tuning:
+                if executor == "tvm":
+                    mod, params = relay.frontend.from_pytorch(trace, input_shapes)
+
+                    print(f"Compiling TVM model {model['name']}")
                     graph, lib, params = compile_model(mod, params, target_string, tuning_records)
+                    
+                    print(f"Running TVM model {model['name']}")
+                    run_model_tvm(graph, lib, params, run_settings, model['name'], tuning_records)
+                else if executor == "pytorch":
+                    run_model_pytorch(trace, input_shapes, run_settings, model['name'])
                 else:
-                    graph, lib, params = compile_model(mod, params, target_string)
-                
-                print(f"Running model {model['name']}")
-                if apply_tuning:
-                    run_model(graph, lib, params, run_settings, model['name'], tuning_records)
-                else:
-                    run_model(graph, lib, params, run_settings, model['name'])
+                    ValueError(f"executor {executor} not supported.")
