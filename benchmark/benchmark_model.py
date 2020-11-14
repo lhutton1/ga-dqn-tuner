@@ -282,7 +282,7 @@ if __name__ == '__main__':
         run_settings = data['run_settings']
 
         for model in data['models']:
-            for executor in ["pytorch"]:
+            for executor in ["tvm", "pytorch"]:
                 trace, input_shapes = get_model(model['name'], model['type'])
 
                 if executor == "tvm":
