@@ -47,7 +47,10 @@ def load_pretrainedmodels(model_name):
 def load_torchtransformers(model_name):
     """Given a model name, returns a pytorch transformers model in eval
     mode. Provided by HuggingFace: https://github.com/huggingface/transformers """
-    import transformers as pytorch_transformers
+    try:
+        import pytorch_transformers
+    except ModuleNotFoundError:
+        import transformers as pytorch_transformers
 
     if model_name == "bert":
         tokenizer = pytorch_transformers.BertTokenizer.from_pretrained('bert-base-uncased')
