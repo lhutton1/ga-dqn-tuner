@@ -97,13 +97,16 @@ def generate_tensor_data(shape, dtype, fill_mode):
     return tensor
 
 
-def generate_pytorch_data(input_shapes, fill_mode, target_string):
+def generate_pytorch_data(input_shapes, fill_mode, target_string, dtype):
     """ Create pytorch data. """
     data = []
     for input_shape in input_shapes:
         if fill_mode == "random":
             if target_string == "cuda":
-                data.append(torch.cuda.FloatTensor(input_shape[1]).normal_())
+                if dtype == "int":
+                    data.append(torch.randint(0,10, input_shape[1], device="cuda"))
+                else:
+                    data.append(torch.cuda.FloatTensor(input_shape[1]).normal_())
             else:
                 data.append(torch.randn(input_shape[1]))
         else:
@@ -241,7 +244,13 @@ def run_model_pytorch(trace, input_shapes, run_settings, model_name, target_stri
     fill_mode = run_settings['fill_mode']
     repeat = run_settings['repeat']
 
-    generated_data = generate_pytorch_data(input_shapes, fill_mode, target_string)
+    # TODO extract datatype required from model. This is a quick fix for BERT 
+    # which accepts int64 input. All other models accept float32 so far.
+    dtype = "float"
+    if model_name == "bert":
+        dtype = "int"
+
+    generated_data = generate_pytorch_data(input_shapes, fill_mode, target_string, dtype)
 
     # first run is always slower due to on-the-fly optimization, skip it.
     skip_first_run = True
@@ -273,7 +282,7 @@ if __name__ == '__main__':
         run_settings = data['run_settings']
 
         for model in data['models']:
-            for executor in ["tvm", "pytorch"]:
+            for executor in ["pytorch"]:
                 trace, input_shapes = get_model(model['name'], model['type'])
 
                 if executor == "tvm":
