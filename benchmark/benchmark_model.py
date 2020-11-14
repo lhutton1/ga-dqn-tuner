@@ -7,7 +7,7 @@ import tvm
 from tvm import relay
 from tvm import autotvm
 from tvm import rpc
-from tvm.contrib import util
+from tvm.contrib import utils
 from tvm.contrib import graph_runtime as runtime
 from tvm.contrib.debugger import debug_runtime
 import numpy as np
@@ -97,14 +97,18 @@ def generate_tensor_data(shape, dtype, fill_mode):
     return tensor
 
 
-def generate_pytorch_data(input_shapes, fill_mode):
-    """ Create pytorch data tensors. """
+def generate_pytorch_data(input_shapes, fill_mode, target_string):
+    """ Create pytorch data. """
     data = []
     for input_shape in input_shapes:
         if fill_mode == "random":
-            data.append(torch.randn(input_shape))
+            if target_string == "cuda":
+                data.append(torch.cuda.FloatTensor(input_shape[1]).normal_())
+            else:
+                data.append(torch.randn(input_shape[1]))
         else:
             raise ValueError(f"fill mode {fill_mode} not supported.")
+    return data
 
 
 def make_inputs_dict(shape_dict, dtype_dict, fill_mode):
@@ -175,12 +179,13 @@ def compile_model(mod, params, target_string, tuning_records=None):
     target_host = "llvm"
 
     if tuning_records and os.path.exists(tuning_records):
+        print('applying tuning history')
         with autotvm.apply_history_best(tuning_records):
             with tvm.transform.PassContext(opt_level=3):
                 graph_module = relay.build(mod, target, params=params, target_host=target_host)
     else:
         with tvm.transform.PassContext(opt_level=3):
-            graph_module = relay.build(mod, target, params=params, target_host=target)
+            graph_module = relay.build(mod, target, params=params, target_host=target_host)
 
     return graph_module.get_json(), graph_module.get_lib(), graph_module.get_params()
 
@@ -197,7 +202,7 @@ def run_model_tvm(graph, lib, params, run_settings, model_name, tuning_records=N
     is_tuned = True if tuning_records else False
 
     lib_name = "mod.so"
-    temp = util.tempdir()
+    temp = utils.tempdir()
     lib_path = temp.relpath(lib_name)
     lib.export_library(lib_path)
     session.upload(lib_path)
@@ -229,27 +234,32 @@ def run_model_tvm(graph, lib, params, run_settings, model_name, tuning_records=N
     print("%s\n%s\n" % (header, stats))
 
 
-def run_model_pytorch(trace, input_shapes, run_settings, model_name):
+def run_model_pytorch(trace, input_shapes, run_settings, model_name, target_string):
     """ Run model using the standard pytorch runtime. """
     profile = run_settings['profile']
     device = run_settings['device']
     fill_mode = run_settings['fill_mode']
     repeat = run_settings['repeat']
 
-    generated_data = generate_pytorch_data(input_shapes, fill_mode)
-    # first run is always slower due to on the fly optimization, skip it.
+    generated_data = generate_pytorch_data(input_shapes, fill_mode, target_string)
+
+    # first run is always slower due to on-the-fly optimization, skip it.
     skip_first_run = True
     times = []
     for run in range(repeat + 1):
-        start = time.time()*1000
-        model(generated_data)
+        start = time.time()
+        # currently supports just a single input
+        trace(*generated_data)
+        end = time.time() - start
+
         if skip_first_run:
-            times.append(time.time()*1000 - start)
             skip_first_run = False
+            continue
+        times.append(end)
 
     header, stats = extract_profile_data(times)
 
-    filename = f'result/stat_table_{model_name}_pytorch'
+    filename = f'results/stat_table_{model_name}_pytorch'
     with open(filename, 'w') as f:
         print("%s\n%s\n" % (header, stats), filename, file=f)
     print("%s\n%s\n" % (header, stats))
@@ -274,7 +284,7 @@ if __name__ == '__main__':
                     
                     print(f"Running TVM model {model['name']}")
                     run_model_tvm(graph, lib, params, run_settings, model['name'], tuning_records)
-                else if executor == "pytorch":
-                    run_model_pytorch(trace, input_shapes, run_settings, model['name'])
+                elif executor == "pytorch":
+                    run_model_pytorch(trace, input_shapes, run_settings, model['name'], target_string)
                 else:
                     ValueError(f"executor {executor} not supported.")

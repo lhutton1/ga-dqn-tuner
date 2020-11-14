@@ -63,6 +63,40 @@ def load_torchtransformers(model_name):
     return model, [input_data]
 
 
+def load_deepspeech():
+    """ Load DeepSpeech LSTM model from GitHub repo. 
+    
+    Pytorch frontend missing: ['aten::_pad_packed_sequence', 'aten::lstm', 
+    'aten::_pack_padded_sequence', 'aten::masked_fill', 'aten::fill_', 
+    'aten::narrow']
+    """
+    raise NotImplementedError("TVM pytorch frontend doesn't support all the required operators for this model.")
+
+    # For reference:
+    # from deepspeech_pytorch.model import DeepSpeech
+    # from torch.utils.model_zoo import load_url
+    # import torch.onnx
+
+    # pretrained_url = 'https://github.com/SeanNaren/deepspeech.pytorch/releases/download/v2.0/an4_pretrained_v2.pth'
+    # params = load_url(pretrained_url)
+    # model = DeepSpeech.load_model_package(params)
+    # model.eval()
+    # input_sizes = (1, 1, 161, 753)
+    # input_data = torch.randn(*input_sizes).float()
+    # input_sizes = torch.IntTensor([161]).int()
+    # model(input_data, input_sizes)
+    # return model, [input_data, input_sizes]
+
+
+def load_simple_transformer():
+    """ A simple transformer from pytorch. """
+    model = torch.nn.Transformer(nhead=2, num_encoder_layers=1, num_decoder_layers=1)
+    model = model.eval()
+    src = torch.rand((10, 32, 512))
+    tgt = torch.rand((20, 32, 512))
+    return model, [src, tgt]
+
+
 def get_model(model_name, type, input_data=[]):
     """Assert that the output of a compiled model matches with that of its
     baseline."""
@@ -70,6 +104,16 @@ def get_model(model_name, type, input_data=[]):
         baseline_model, baseline_input = load_torchvision(model_name)
     elif type == "torchtransformers":
         baseline_model, baseline_input = load_torchtransformers(model_name)
+    elif type == "github":
+        if model_name == "deepspeech":
+            baseline_model, baseline_input = load_deepspeech()
+        else:
+            assert False, "Unexpected model name"
+    elif type == "custom":
+        if model_name == "simple_transformer":
+            baseline_model, baseline_input = load_simple_transformer()
+        else:
+            assert False, "Unexpected model name"
     else:
         assert False, "Unexpected type"
 
