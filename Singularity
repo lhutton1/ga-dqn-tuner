@@ -56,9 +56,10 @@ apt-get install -y --no-install-recommends \
     libssl-dev
 
 # Clone TVM
-git clone --recursive https://github.com/apache/incubator-tvm.git tvm
+git clone --recursive https://github.com/lhutton1/tvm.git tvm
 cd tvm
-git checkout bb4179e2867a1d3cb9bd56c707681cc66c07d459 # pin TVM version
+git checkout autotvm-measure-remote-time
+git checkout d2452502b9486a7993d9dec3d04e449efdd81cf7 # pin TVM version
 git submodule init
 git submodule update
 
@@ -77,15 +78,17 @@ EOF
 
 # Build TVM
 cmake ..
-make -j4
+make -j8
 
 # Install python dependencies
 cd ../python
 python3 -m pip install --upgrade pip setuptools
+python3 -m pip install xgboost==1.2.1
 python3 -m pip install -e .[extra_feature]
 python3 -m pip install -e .[test]
 python3 -m pip install packaging
 python3 -m pip install torch==1.6.0 torchvision==0.7.0 -f https://download.pytorch.org/whl/cu101/torch_stable.html
+python3 -m pip install pytorch-transformers
 
 # Cuda paths
 export PATH=/usr/local/nvidia/bin:${PATH}
