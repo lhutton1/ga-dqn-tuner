@@ -11,6 +11,7 @@ from tvm.autotvm.tuner import GATuner
 from tvm.autotvm.tuner import GridSearchTuner
 from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
+#from tvm.autotvm.tuner import TreeGRUTuner
 
 from get_model import get_model
 
@@ -52,6 +53,8 @@ def tune_model(mod, params, tune_settings, target):
             tuner_obj = RandomTuner(tsk)
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
+        elif tuner == "treegru":
+            tuner_obj = TreeGRUTuner(tsk)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
 
@@ -81,5 +84,5 @@ if __name__ == '__main__':
         for model in data['models']:
             trace, input_shapes = get_model(model['name'], model['type'])
             mod, params = relay.frontend.from_pytorch(trace, input_shapes)
-            print(f"Tuning model {model['name']}")
+            print(f"Tuning model {model['name']}, using strategy {tune_settings['tuner']}")
             tune_model(mod, params, tune_settings, target_string)
