@@ -52,8 +52,6 @@ def tune_model(mod, params, tune_settings, target):
             tuner_obj = RandomTuner(tsk)
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
-        elif tuner == "treegru":
-            tuner_obj = TreeGRUTuner(tsk)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
 

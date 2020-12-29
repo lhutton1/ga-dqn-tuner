@@ -105,6 +105,8 @@ def load_simple_transformer():
 def get_model(model_name, type, input_data=[]):
     """Assert that the output of a compiled model matches with that of its
     baseline."""
+
+    # nasty but it'll do for now
     if type == "torchvision":
         baseline_model, baseline_input = load_torchvision(model_name)
     elif type == "torchtransformers":
