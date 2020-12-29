@@ -274,26 +274,24 @@ def run_model_pytorch(trace, input_shapes, run_settings, model_name, target_stri
     print("%s\n%s\n" % (header, stats))
 
 
-if __name__ == '__main__':
-    with open('config.json') as json_file:
-        data = json.load(json_file)
-        target_string = data['target']
-        tuning_records = data['autotuner_settings']['tuning_records']
-        run_settings = data['run_settings']
+def benchmark_models(data):
+    target_string = data['target']
+    tuning_records = data['autotuner_settings']['tuning_records']
+    run_settings = data['run_settings']
 
-        for model in data['models']:
-            for executor in ["tvm", "pytorch"]:
-                trace, input_shapes = get_model(model['name'], model['type'])
+    for model in data['models']:
+        for executor in ["tvm", "pytorch"]:
+            trace, input_shapes = get_model(model['name'], model['type'])
 
-                if executor == "tvm":
-                    mod, params = relay.frontend.from_pytorch(trace, input_shapes)
+            if executor == "tvm":
+                mod, params = relay.frontend.from_pytorch(trace, input_shapes)
 
-                    print(f"Compiling TVM model {model['name']}")
-                    graph, lib, params = compile_model(mod, params, target_string, tuning_records)
-                    
-                    print(f"Running TVM model {model['name']}")
-                    run_model_tvm(graph, lib, params, run_settings, model['name'], tuning_records)
-                elif executor == "pytorch":
-                    run_model_pytorch(trace, input_shapes, run_settings, model['name'], target_string)
-                else:
-                    ValueError(f"executor {executor} not supported.")
+                print(f"Compiling TVM model {model['name']}")
+                graph, lib, params = compile_model(mod, params, target_string, tuning_records)
+                
+                print(f"Running TVM model {model['name']}")
+                run_model_tvm(graph, lib, params, run_settings, model['name'], tuning_records)
+            elif executor == "pytorch":
+                run_model_pytorch(trace, input_shapes, run_settings, model['name'], target_string)
+            else:
+                raise ValueError(f"executor {executor} not supported.")
