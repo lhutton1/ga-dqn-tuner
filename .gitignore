@@ -20,3 +20,5 @@ __pycache__
 
 *.sh.e*
 *.sh.o*
+
+cmake-build-debug/

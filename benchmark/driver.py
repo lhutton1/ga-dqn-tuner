@@ -2,7 +2,6 @@ import argparse
 import json
 
 def main():
-    print("running main")
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--method", required=True, help="Select method type tune/benchmark")
     parser.add_argument("-c", "--config", required=True, help="JSON configuration for specified method")
