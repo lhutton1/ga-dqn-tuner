@@ -161,6 +161,7 @@ def make_inputs_dict(shape_dict, dtype_dict, fill_mode):
 
     return inputs_dict
 
+
 def extract_profile_data(times):
     """Provided a series of execution times calculate the mean, std, max and min. """
     mean_ts = np.mean(times)
@@ -244,8 +245,7 @@ def run_model_pytorch(trace, input_shapes, run_settings, model_name, target_stri
     fill_mode = run_settings['fill_mode']
     repeat = run_settings['repeat']
 
-    # TODO extract datatype required from model. This is a quick fix for BERT 
-    # which accepts int64 input. All other models accept float32 so far.
+    # TODO extract datatype required from model. This is a quick fix for BERT
     dtype = "float"
     if model_name == "bert":
         dtype = "int"
@@ -255,9 +255,9 @@ def run_model_pytorch(trace, input_shapes, run_settings, model_name, target_stri
     # first run is always slower due to on-the-fly optimization, skip it.
     skip_first_run = True
     times = []
-    for run in range(repeat + 1):
+    for _ in range(repeat + 1):
         start = time.time()
-        # currently supports just a single input
+        # TODO support more than a single input
         trace(*generated_data)
         end = time.time() - start
 

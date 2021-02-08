@@ -1,7 +1,8 @@
 import argparse
 import json
 
-def main():
+
+def driver():
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--method", required=True, help="Select method type tune/benchmark")
     parser.add_argument("-c", "--config", required=True, help="JSON configuration for specified method")
@@ -18,5 +19,6 @@ def main():
     else:
         raise ValueError("Specified method not recognised. Use tune/benchmark.")
 
+
 if __name__ == "__main__":
-    main()
+    driver()
