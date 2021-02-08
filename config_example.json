@@ -20,7 +20,8 @@
     "autotuner_settings": {
         "early_stopping": 250,
         "number": 10,
-        "tuning_records": "autotuner_records.json",
+        "save_path": "tuning_records/",
+        "save_name": "example_run",
         "repeat": 1,
         "trials": 1000,
         "tuner": "xgb"

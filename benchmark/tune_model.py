@@ -11,24 +11,27 @@ from tvm.autotvm.tuner import GATuner
 from tvm.autotvm.tuner import GridSearchTuner
 from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
+from tvm.autotvm.tuner import RLTuner
 
 from get_model import get_model
+
 
 def tune_model(mod, params, tune_settings, target):
     early_stopping = tune_settings['early_stopping']
     number = tune_settings["number"]
-    tuning_records = tune_settings["tuning_records"]
+    save_path = tune_settings["save_path"]
+    save_name = tune_settings["save_name"]
     repeat = tune_settings["repeat"]
     trials = tune_settings["trials"]
     tuner = tune_settings["tuner"]
     target = tvm.target.Target(target)
 
     tasks = autotvm.task.extract_from_program(
-            mod["main"],
-            target=target,
-            target_host="llvm",
-            params=params,
-        )
+        mod["main"],
+        target=target,
+        target_host="llvm",
+        params=params,
+    )
 
     runner = autotvm.LocalRunner(
         number=number,
@@ -54,15 +57,10 @@ def tune_model(mod, params, tune_settings, target):
             tuner_obj = RandomTuner(tsk)
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
+        elif tuner == "rltuner-hardware":
+            tuner_obj = RLTuner(tsk, debug=True)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
-
-        # If transfer learning is being used, load the existing results
-        if tuning_records and os.path.exists(tuning_records):
-            logging.debug("loading tuning records from %s", tuning_records)
-            start_time = time.time()
-            tuner_obj.load_history(autotvm.record.load_from_file(tuning_records))
-            logging.debug("loaded history in %.2f sec(s)", time.time() - start_time)
 
         tuner_obj.tune(
             n_trial=min(trials, len(tsk.config_space)),
@@ -70,9 +68,13 @@ def tune_model(mod, params, tune_settings, target):
             measure_option=measure_option,
             callbacks=[
                 autotvm.callback.progress_bar(trials, prefix=prefix),
-                autotvm.callback.log_to_file(tuning_records),
+                autotvm.callback.log_to_file(save_path + save_name + "/tuning_record.json"),
             ],
         )
+
+        # save debug info for rl tuner only
+        if tuner == "rltuner-hardware":
+            tuner_obj.save_model(save_path, save_name)
 
 
 def tune_models(data):
