@@ -16,6 +16,9 @@ def driver():
     elif args.method == "benchmark":
         from benchmark_model import benchmark_models
         benchmark_models(json_config)
+    elif args.method == "rl_optimize":
+        from trial_hyperparameters import trial_parameters
+        trial_parameters(json_config)
     else:
         raise ValueError("Specified method not recognised. Use tune/benchmark.")
 
