@@ -14,9 +14,9 @@ mpl.use('Agg')
 from matplotlib import pyplot as plt
 
 from tvm.autotvm.tuner import Tuner
-from tvm.autotvm.model_based_tuner import knob2point, point2knob
+from tvm.autotvm.tuner.model_based_tuner import knob2point, point2knob
 
-from ..tools.plots import DynamicPlot, DynamicScatterPlot
+from tools.plots import DynamicPlot, DynamicScatterPlot
 
 
 class GATuner(Tuner):
@@ -161,8 +161,8 @@ class GATuner(Tuner):
             abs_path = Path(save_path + save_name).resolve()
             abs_path.mkdir(exist_ok=True, parents=True)
             abs_path_str = str(abs_path)
-            self.best_score_plot.figure.savefig(abs_path_str + "/best_score.png")
-            self.action_plot.figure.savefig(abs_path_str + "/actions.png")
+            self.best_score_plot.save(abs_path_str, "best_score")
+            self.action_plot.save(abs_path_str, "action")
             plt.close(self.best_score_plot.figure)
 
     def has_next(self):

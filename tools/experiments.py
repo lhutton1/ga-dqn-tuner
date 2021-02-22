@@ -1,9 +1,13 @@
+from pathlib import Path
+
 import tvm
 from tvm import relay
 from tvm.relay import testing
 from tvm import autotvm
-from tvm.autotvm.tuner.rl_optimizer.rl_ga_tuner import DQNGATuner
-from tvm.autotvm.tuner import GATuner
+
+from rl_tuner.ga_tuner import DQNGATuner
+from ga_tuner.ga_tuner import GATuner
+from .plots import *
 
 """
 Run experiments for reinforcement learning tuning.
@@ -24,6 +28,9 @@ def run_experiments(json_config):
     if not isinstance(names, list):
         raise ValueError("names of experiments must be specified as list")
 
+    has_run_trial_ga = False
+    has_run_trial_gadqn = False
+
     # run specified experiments
     if "trial_hyperparameters" in names:
         print("Running hyperparameter trial experiment for DQN with GA.")
@@ -31,6 +38,19 @@ def run_experiments(json_config):
     if "trial_ga" in names:
         print("Running ga tuner trial.")
         trial_ga(save_path, save_name)
+        has_run_trial_ga = True
+    if "trial_gadqn" in names:
+        print("Running dqnga tuner trial.")
+        trial_gadqn(save_path, save_name)
+        has_run_trial_gadqn = True
+    if "compare_gadqn_ga" in names:
+        print("Comparing ga with gadqn.")
+        no_trials = 1
+        if not has_run_trial_ga:
+            trial_ga(save_path, save_name, trials=no_trials)
+        if not has_run_trial_gadqn:
+            trial_gadqn(save_path, save_name, trials=no_trials)
+        compare_gadqn_with_ga(save_path, save_name, expected_trials=no_trials)
 
 
 def _get_relay_convolution():
@@ -182,7 +202,7 @@ def trial_parameters(save_path, save_name):
                                      discount, e_max, e_min, e_decay, psize)
 
 
-def trial_ga(save_path, save_name):
+def trial_ga(save_path, save_name, trials=10):
     """
     Run a number of experiments for GA tuner.
 
@@ -190,10 +210,67 @@ def trial_ga(save_path, save_name):
     ---------------
     trial_ga
     """
-    n_trial = 2000
+    n_trial = 20
     early_stopping = 1e9
     pop_size = 16
 
-    for i in range(0, 10):
-        name = save_name + "_trial=" + str(i)
+    for i in range(trials):
+        name = save_name + "_ga_trial=" + str(i)
         _test_convolution_with_ga(save_path, name, n_trial, early_stopping, pop_size)
+
+
+def trial_gadqn(save_path, save_name, trials=10):
+    """
+    Run a number of experiments for GA-DQN tuner.
+
+    Experiment Name
+    ---------------
+    trial_gadqn
+    """
+
+    # defaults
+    n_trial = 20
+    early_stopping = 1e9
+    learn_start = 100
+    memory_capacity = 200
+    update_frequency = 50
+    discount = 0.99
+    epsilon = (0.9, 0.05, 0.95)
+    pop_size = 16
+
+    for i in range(trials):
+        name = save_name + "_gadqn_trial=" + str(i)
+        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+                                     learn_start, memory_capacity, update_frequency,
+                                     discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
+
+
+def compare_gadqn_with_ga(save_path, save_name, expected_trials):
+    """
+    Compare iterations of ga with iterations of its dqn counterpart.
+    Average and log these results in a graph.
+
+    Experiment Name
+    ---------------
+    compare_gadqn_ga
+    """
+
+    gadqn_tuning = []
+    ga_tuning = []
+
+    # collect best score results
+    for i in range(expected_trials):
+        gadqn_name = save_name + "_gadqn_trial=" + str(i) + "/"
+        gadqn_tuning.append(DynamicPlot.load(save_path + gadqn_name, "best_score").y_data)
+        ga_name = save_name + "_ga_trial=" + str(i) + "/"
+        ga_tuning.append(DynamicPlot.load(save_path + ga_name, "best_score").y_data)
+
+    comparison_plot(save_path,
+                    "best_score_comparison",
+                    "Best score comparison",
+                    "steps",
+                    "best score",
+                    gadqn_tuning,
+                    ga_tuning)
+    # create new graph displaying averages of both plots
+

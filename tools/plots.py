@@ -1,9 +1,11 @@
 """
 A series of matplotlib plots used in the project.
 """
+import pickle
 
 import numpy as np
 from matplotlib import pyplot as plt
+
 
 class DynamicPlot:
     """
@@ -14,6 +16,10 @@ class DynamicPlot:
         self.figure, self.axes = plt.subplots()
         self.axes.set_autoscalex_on(True)
         self.axes.set_autoscaley_on(True)
+
+        self.title = title
+        self.x_label = x_label
+        self.y_label = y_label
 
         self.figure.suptitle(title)
         self.axes.set_xlabel(x_label)
@@ -34,8 +40,29 @@ class DynamicPlot:
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
 
+    def save(self, save_path, save_name):
+        self.figure.savefig(save_path + "/" + save_name + ".png")
+        with open(save_path + "/" + save_name + ".pkl", "wb") as f:
+            print("SAVING MODEL")
+            pickle.dump(self.title, f)
+            pickle.dump(self.x_label, f)
+            pickle.dump(self.y_label, f)
+            pickle.dump(self.x_data, f)
+            pickle.dump(self.y_data, f)
 
-class DynamicScatterPlot:
+    @staticmethod
+    def load(load_path, load_name):
+        with open(load_path + "/" + load_name + ".pkl", "rb") as f:
+            title = pickle.load(f)
+            x_label = pickle.load(f)
+            y_label = pickle.load(f)
+            x_data = pickle.load(f)
+            y_data = pickle.load(f)
+
+        return DynamicPlot(title, x_label, y_label, x_data, y_data)
+
+
+class DynamicScatterPlot(DynamicPlot):
     """
     Create a matplotlib graph which can be dynamically updated
     as more points become available.
@@ -46,16 +73,7 @@ class DynamicScatterPlot:
                  x_data=None,
                  y_data=None,
                  area=None):
-        self.figure, self.axes = plt.subplots()
-        self.axes.set_autoscalex_on(True)
-        self.axes.set_autoscaley_on(True)
-
-        self.figure.suptitle(title)
-        self.axes.set_xlabel(x_label)
-        self.axes.set_ylabel(y_label)
-
-        self.x_data = x_data if x_data else []
-        self.y_data = y_data if y_data else []
+        super(DynamicScatterPlot, self).__init__(title, x_label, y_label, x_data, y_data)
         self.area = area if area else []
         self.scatter = self.axes.scatter(self.x_data, self.y_data, s=self.area)
 
@@ -71,3 +89,53 @@ class DynamicScatterPlot:
         self.axes.autoscale_view()
         self.figure.canvas.draw_idle()
         self.figure.canvas.flush_events()
+
+    def save(self, save_path, save_name):
+        self.figure.savefig(save_path + "/" + save_name + ".png")
+        with open(save_path + "/" + save_name + ".pkl", "wb") as f:
+            pickle.dump(self.title, f)
+            pickle.dump(self.x_label, f)
+            pickle.dump(self.y_label, f)
+            pickle.dump(self.x_data, f)
+            pickle.dump(self.y_data, f)
+            pickle.dump(self.area, f)
+
+    @staticmethod
+    def load(load_path, load_name):
+        with open(load_path + "/" + load_name + ".pkl", "rb") as f:
+            title = pickle.load(f)
+            x_label = pickle.load(f)
+            y_label = pickle.load(f)
+            x_data = pickle.load(f)
+            y_data = pickle.load(f)
+            area = pickle.load(f)
+
+        return DynamicScatterPlot(title, x_label, y_label, x_data, y_data, area)
+
+
+def comparison_plot(save_path, save_name, title, x_label, y_label, first_data, second_data):
+    figure, axes = plt.subplots()
+    axes.set_autoscalex_on(True)
+    axes.set_autoscaley_on(True)
+
+    figure.suptitle(title)
+    axes.set_xlabel(x_label)
+    axes.set_ylabel(y_label)
+
+    scores_stack_1 = np.dstack(tuple(x for x in first_data))[0]
+    avg_scores_1 = np.mean(scores_stack_1, axis=1)
+    min_scores_1 = np.min(scores_stack_1, axis=1)
+    max_scores_1 = np.max(scores_stack_1, axis=1)
+    scores_stack_2 = np.dstack(tuple(x for x in second_data))[0]
+    avg_scores_2 = np.mean(scores_stack_2, axis=1)
+    min_scores_2 = np.min(scores_stack_2, axis=1)
+    max_scores_2 = np.max(scores_stack_2, axis=1)
+    steps = np.arange(0, len(first_data[0]))
+
+    plt.plot(steps, avg_scores_1, 'k-')
+    plt.fill_between(steps, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .4))
+    plt.plot(steps, avg_scores_2, 'k-')
+    plt.fill_between(steps, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .4))
+    plt.show()
+
+    figure.savefig(save_path + "/" + save_name + ".png")

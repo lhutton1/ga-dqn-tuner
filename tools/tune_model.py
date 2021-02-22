@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-import os
-import json
-import logging
-import time
 
 import tvm
 from tvm import autotvm

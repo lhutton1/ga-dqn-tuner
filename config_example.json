@@ -32,7 +32,7 @@
         "fill_mode": "random",
         "repeat": 4
     },
-    "experiment": {
+    "experiments": {
         "save_path": "experiment_run/",
         "save_name": "example_model",
         "names": ["trial_hyperparameters"]

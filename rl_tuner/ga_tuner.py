@@ -15,10 +15,10 @@ mpl.use('Agg')
 from matplotlib import pyplot as plt
 
 from tvm.autotvm.tuner import Tuner
-from tvm.autotvm.model_based_tuner import knob2point, point2knob
+from tvm.autotvm.tuner.model_based_tuner import knob2point, point2knob
 
 from .model import DQNAgent
-from ..tools.plots import DynamicPlot, DynamicScatterPlot
+from tools.plots import DynamicPlot, DynamicScatterPlot
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger("DQNTuner")
@@ -265,11 +265,12 @@ class DQNGATuner(Tuner):
         self.agent.save_models(abs_path_str + "/policy_net.model",
                                abs_path_str + "/target_net.model")
         if self.debug:
-            self.loss_plot.figure.savefig(abs_path_str + "/loss.png")
-            self.avg_score_plot.figure.savefig(abs_path_str + "/avg_score.png")
-            self.best_score_plot.figure.savefig(abs_path_str + "/best_score.png")
-            self.action_plot.figure.savefig(abs_path_str + "/action.png")
-            self.reward_plot.figure.savefig(abs_path_str + "/reward.png")
+            self.loss_plot.save(abs_path_str, "loss")
+            self.avg_score_plot.save(abs_path_str, "avg_score")
+            self.best_score_plot.save(abs_path_str, "best_score")
+            self.action_plot.save(abs_path_str, "action")
+            self.reward_plot.save(abs_path_str, "reward")
+
             params = {
                 "Learn Start": self.learn_start,
                 "Update Frequency": self.update_frequency,

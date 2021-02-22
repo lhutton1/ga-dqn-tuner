@@ -14,13 +14,13 @@ def driver():
 
     # run specified method
     if args.method == "tune":
-        from tune_model import tune_models
+        from tools.tune_model import tune_models
         tune_models(json_config)
     elif args.method == "benchmark":
-        from benchmark_model import benchmark_models
+        from tools.benchmark_model import benchmark_models
         benchmark_models(json_config)
     elif args.method == "experiment":
-        from experiments import run_experiments
+        from tools.experiments import run_experiments
         run_experiments(json_config)
     else:
         raise ValueError("Specified method not recognised. Use tune/benchmark/experiment.")
