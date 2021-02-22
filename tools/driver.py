@@ -23,7 +23,7 @@ def driver():
         from experiments import run_experiments
         run_experiments(json_config)
     else:
-        raise ValueError("Specified method not recognised. Use tune/benchmark.")
+        raise ValueError("Specified method not recognised. Use tune/benchmark/experiment.")
 
 
 if __name__ == "__main__":

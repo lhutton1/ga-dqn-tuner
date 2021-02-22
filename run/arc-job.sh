@@ -12,6 +12,7 @@ DATE=$(date +"%Y-%m-%d")
 TIME=$(date +"%H%M")
 DATE_TIME=${DATE}_${TIME}
 
+# Change to required username
 NO_BACKUP_DIR="/nobackup/sc17ljth"
 
 PROJECT_DIR="${NO_BACKUP_DIR}/benchmark-tvm"

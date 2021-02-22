@@ -32,9 +32,10 @@
         "fill_mode": "random",
         "repeat": 4
     },
-    "trial_hyperparameters": {
-        "save_path": "hyperparameter_records",
-        "save_name": "example_model"
+    "experiment": {
+        "save_path": "experiment_run/",
+        "save_name": "example_model",
+        "names": ["trial_hyperparameters"]
     },
     "target": "cuda"
 }

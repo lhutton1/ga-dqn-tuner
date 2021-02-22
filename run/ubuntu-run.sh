@@ -28,4 +28,4 @@ CONFIG=`cat <<-EOF
 EOF`
 
 echo "Starting script..."
-python3 benchmark/driver.py -m="${METHOD}" -c="${CONFIG}"
+python3 tools/driver.py -m="${METHOD}" -c="${CONFIG}"
