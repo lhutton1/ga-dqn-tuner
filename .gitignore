@@ -22,3 +22,5 @@ __pycache__
 *.sh.o*
 
 cmake-build-debug/
+
+.idea/

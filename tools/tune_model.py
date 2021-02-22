@@ -11,8 +11,8 @@ from tvm.autotvm.tuner import GATuner
 from tvm.autotvm.tuner import GridSearchTuner
 from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
-from tvm.autotvm.tuner import RLTuner
 
+from ..rl_tuner.ga_tuner import DQNGATuner
 from get_model import get_model
 
 
@@ -57,8 +57,8 @@ def tune_model(mod, params, tune_settings, target):
             tuner_obj = RandomTuner(tsk)
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
-        elif tuner == "rltuner-hardware":
-            tuner_obj = RLTuner(tsk, debug=True)
+        elif tuner == "ga-dqn":
+            tuner_obj = DQNGATuner(tsk, debug=True)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
 
@@ -73,7 +73,7 @@ def tune_model(mod, params, tune_settings, target):
         )
 
         # save debug info for rl tuner only
-        if tuner == "rltuner-hardware":
+        if tuner == "ga-dqn":
             tuner_obj.save_model(save_path, save_name)
 
 
