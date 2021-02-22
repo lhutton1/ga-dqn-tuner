@@ -60,6 +60,4 @@ Parameters should be added under `experiment` object. See `config-example.json` 
 Experiment details:
 | Experiment Name          | Description                                                                                |
 |--------------------------|--------------------------------------------------------------------------------------------|
-| `trial_hyperparameters`  | Each RL tuner implementation has a number of hyperparameters to which the optimal settings |
-|                          | are not necessarily known. This experiment uses a simple grid search to help find the best |
-|                          | hyperparameters. The results are logged to file.                                           |
+| `trial_hyperparameters`  | Each RL tuner implementation has a number of hyperparameters to which the optimal settings are not necessarily known. This experiment uses a simple grid search to help find the best hyperparameters. The results are logged to file. |

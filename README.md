@@ -2,7 +2,7 @@
 
 Provides an implemention of a tuning algorithm that leverages reinforcement learning techniques within the TVM framework.
 
-## Benchmark
+## Tools
 Provides a suite of tools and experiments for AutoTVM. 
 
 ## Run
