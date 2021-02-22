@@ -15,11 +15,11 @@ DATE_TIME=${DATE}_${TIME}
 # Change to required username
 NO_BACKUP_DIR="/nobackup/sc17ljth"
 
-PROJECT_DIR="${NO_BACKUP_DIR}/benchmark-tvm"
-TVM_IMG="${PROJECT_DIR}/benchmark-tvm.simg"
+PROJECT_DIR="${NO_BACKUP_DIR}/rl-tuner"
+TVM_IMG="${PROJECT_DIR}/rl-tuner.simg"
 TMP_DIR="${NO_BACKUP_DIR}/tmp"
 
-SCRIPT_TO_RUN="${PROJECT_DIR}/benchmark/driver.py"
+SCRIPT_TO_RUN="${PROJECT_DIR}/tools/driver.py"
 METHOD="tune"
 CONFIG=`cat <<-EOF
 {
@@ -50,5 +50,5 @@ EOF`
 echo "Starting script..."
 echo "Swapping to ${PROJECT_DIR}"
 cd ${PROJECT_DIR}
-singularity exec --nv --containall --bind ${PROJECT_DIR}:/benchmark-tvm --bind ${TMP_DIR}:/tmp --pwd /benchmark-tvm -H ${PROJECT_DIR} ${TVM_IMG} python3 ${SCRIPT_TO_RUN} -m=${METHOD} -c="${CONFIG}"
+singularity exec --nv --containall --bind ${PROJECT_DIR}:/rl-tuner --bind ${TMP_DIR}:/tmp --pwd /rl-tuner -H ${PROJECT_DIR} ${TVM_IMG} python3 ${SCRIPT_TO_RUN} -m=${METHOD} -c="${CONFIG}"
 echo "Finished script."
