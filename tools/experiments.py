@@ -45,7 +45,7 @@ def run_experiments(json_config):
         has_run_trial_gadqn = True
     if "compare_gadqn_ga" in names:
         print("Comparing ga with gadqn.")
-        no_trials = 1
+        no_trials = 10
         if not has_run_trial_ga:
             trial_ga(save_path, save_name, trials=no_trials)
         if not has_run_trial_gadqn:
@@ -210,7 +210,7 @@ def trial_ga(save_path, save_name, trials=10):
     ---------------
     trial_ga
     """
-    n_trial = 20
+    n_trial = 2000
     early_stopping = 1e9
     pop_size = 16
 
@@ -229,7 +229,7 @@ def trial_gadqn(save_path, save_name, trials=10):
     """
 
     # defaults
-    n_trial = 20
+    n_trial = 2000
     early_stopping = 1e9
     learn_start = 100
     memory_capacity = 200

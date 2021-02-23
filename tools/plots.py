@@ -124,18 +124,19 @@ def comparison_plot(save_path, save_name, title, x_label, y_label, first_data, s
 
     scores_stack_1 = np.dstack(tuple(x for x in first_data))[0]
     avg_scores_1 = np.mean(scores_stack_1, axis=1)
-    min_scores_1 = np.min(scores_stack_1, axis=1)
-    max_scores_1 = np.max(scores_stack_1, axis=1)
+    min_scores_1 = np.percentile(scores_stack_1, 10, axis=1)
+    max_scores_1 = np.percentile(scores_stack_1, 90, axis=1)
     scores_stack_2 = np.dstack(tuple(x for x in second_data))[0]
     avg_scores_2 = np.mean(scores_stack_2, axis=1)
-    min_scores_2 = np.min(scores_stack_2, axis=1)
-    max_scores_2 = np.max(scores_stack_2, axis=1)
+    min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
+    max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
     steps = np.arange(0, len(first_data[0]))
 
-    plt.plot(steps, avg_scores_1, 'k-')
-    plt.fill_between(steps, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .4))
-    plt.plot(steps, avg_scores_2, 'k-')
-    plt.fill_between(steps, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .4))
+    plt.plot(steps, avg_scores_1, '-r', label="ga-dqn")
+    plt.fill_between(steps, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
+    plt.plot(steps, avg_scores_2, '-g', label="ga")
+    plt.fill_between(steps, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
+    plt.legend(loc="lower right")
     plt.show()
 
     figure.savefig(save_path + "/" + save_name + ".png")
