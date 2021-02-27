@@ -10,12 +10,13 @@ from collections import Counter
 
 import numpy as np
 import torch
-import matplotlib as mpl
-mpl.use('Agg')
 from matplotlib import pyplot as plt
 
 from tvm.autotvm.tuner import Tuner
 from tvm.autotvm.tuner.model_based_tuner import knob2point, point2knob
+from tvm.autotvm.measure import MeasureInput, create_measure_batch
+from tvm.autotvm.util import format_si_prefix
+from tvm.autotvm.env import GLOBAL_SCOPE
 
 from .model import DQNAgent
 from tools.plots import DynamicPlot, DynamicScatterPlot
@@ -49,9 +50,29 @@ class DQNGATuner(Tuner):
 
         self.visited = set([])
 
-        seed = 12345
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+        self.pop_size = pop_size
+        self.elite_num = elite_num
+        self.mutation_prob = mutation_prob
+        assert elite_num <= pop_size, "The number of elites must be less than population size"
+
+        self.genes = []
+        self.scores = []
+        self.elites = []
+        self.elite_scores = []
+        self.trial_pt = 0
+        self.steps = 0
+
+        # random initialization
+        self.pop_size = min(self.pop_size, len(self.space))
+        self.elite_num = min(self.pop_size, self.elite_num)
+        for _ in range(self.pop_size):
+            tmp_gene = point2knob(np.random.randint(len(self.space)), self.dims)
+            while knob2point(tmp_gene, self.dims) in self.visited:
+                tmp_gene = point2knob(np.random.randint(len(self.space)), self.dims)
+
+            self.genes.append(tmp_gene)
+            self.visited.add(knob2point(tmp_gene, self.dims))
+        self.prev_fitness = 0
 
         state_space_size = len(self.dims)
         action_space_size = len(self.dims) + 1
@@ -68,29 +89,6 @@ class DQNGATuner(Tuner):
         self.update_frequency = update_frequency
         self.discount = discount
         self.agent_batch_size = agent_batch_size
-
-        self.pop_size = pop_size
-        self.elite_num = elite_num
-        self.mutation_prob = mutation_prob
-        assert elite_num <= pop_size, "The number of elites must be less than population size"
-
-        self.genes = []
-        self.scores = []
-        self.elites = []
-        self.elite_scores = []
-        self.trial_pt = 0
-        self.steps = 0
-        # random initialization
-        self.pop_size = min(self.pop_size, len(self.space))
-        self.elite_num = min(self.pop_size, self.elite_num)
-        for _ in range(self.pop_size):
-            tmp_gene = point2knob(np.random.randint(len(self.space)), self.dims)
-            while knob2point(tmp_gene, self.dims) in self.visited:
-                tmp_gene = point2knob(np.random.randint(len(self.space)), self.dims)
-
-            self.genes.append(tmp_gene)
-            self.visited.add(knob2point(tmp_gene, self.dims))
-        self.prev_fitness = 0
 
         self.observations = [(None, None, gene) for gene in self.genes]
         self.step_count = 0
@@ -115,10 +113,8 @@ class DQNGATuner(Tuner):
             next_gene = tmp_gene.copy()
 
             if len(self.visited) < len(self.space):
-                # TODO skip already visited configs
-                #while knob2point(next_gene, self.dims) in self.visited:
-                # minus one so negative value represents no mutation
                 action = self.agent.select_action(tmp_gene)
+                # action value of 0 means no mutation occurs
                 if action != 0:
                     next_gene[action-1] = np.random.randint(
                         self.dims[action-1]
@@ -197,28 +193,30 @@ class DQNGATuner(Tuner):
                 self.scores.append(0.0)
 
         # Save a bassline score of initial population. This will be used when calculating reward.
-        #if not self.bassline_score:
-        #    self.bassline_score = max(self.scores)
+        # if not self.bassline_score:
+        #     self.bassline_score = max(self.scores)
 
         # After each set of measurements, store observations and train DQN
         start_idx = self.trial_pt - len(results)
         end_idx = self.trial_pt
         latest_observations = self.observations[start_idx:end_idx]
         latest_scores = self.scores[start_idx:end_idx]
+        reward_multiplier = 5
         if self.step_count >= self.pop_size:
             for (state, action, next_state), score in zip(latest_observations, latest_scores):
-                print("SCORE", score, "BEST", self.best_flops, "PREV FITNESS", self.prev_fitness)
                 if score >= self.best_flops:
-                    reward = (score * 5) / scale
+                    reward = (score * reward_multiplier) / scale
                 elif self.prev_fitness < score <= self.best_flops:
                     reward = score / scale
                 elif self.prev_fitness == score:
                     reward = 0
                 else:
                     reward = (score * -1) / scale
-                print("REWARD", reward)
+                # print("REWARD", reward)
                 #reward = (score - self.bassline_score) / scale
-                #print("STATE:", state, "ACTION:", action, "NEXTSTATE:", next_state, "INITIAL SCORE:", self.bassline_score / scale, "REWARD (Speedup):", reward, "CURRENT SCORE:", score / scale)
+                # if score >= self.best_flops:
+                #     reward *= 5
+
                 self.agent.memory.store([state, action, next_state, reward, False])
                 if self.debug:
                     self.reward_plot.update_plot(self.step_count, reward)
@@ -227,8 +225,6 @@ class DQNGATuner(Tuner):
             loss = self.agent.train(self.agent_batch_size)
             if self.step_count % self.update_frequency == 0:
                 self.agent.update_target_net()
-                # Reset bassline score when target updates. This forces better reward.
-               # self.bassline_score = 0
             self.agent.update_epsilon()
 
         self.step_count += len(results)
@@ -256,6 +252,111 @@ class DQNGATuner(Tuner):
                 self.observations = transitions
             self.trial_pt = 0
             self.scores = []
+
+    # def tune(self, n_trial, measure_option, early_stopping=None, callbacks=(), si_prefix="G"):
+    #     """Begin tuning
+    #     Parameters
+    #     ----------
+    #     n_trial: int
+    #         Maximum number of configs to try (measure on real hardware)
+    #     measure_option: dict
+    #         The options for how to measure generated code.
+    #         You should use the return value ot autotvm.measure_option for this argument.
+    #     early_stopping: int, optional
+    #         Early stop the tuning when not finding better configs in this number of trials
+    #     callbacks: List of callable
+    #         A list of callback functions. The signature of callback function is
+    #         (Tuner, List of MeasureInput, List of MeasureResult)
+    #         with no return value. These callback functions will be called on
+    #         every measurement pair. See autotvm/tuner/callback.py for some examples.
+    #     si_prefix: str
+    #         One of tvm.autotvm.utils.SI_PREFIXES. The SI prefix to use when reporting FLOPS.
+    #     """
+    #     measure_batch = create_measure_batch(self.task, measure_option)
+    #     n_parallel = getattr(measure_batch, "n_parallel", 1)
+    #     early_stopping = early_stopping or 1e9
+    #     self.n_trial = n_trial
+    #     self.early_stopping = early_stopping
+    #
+    #     # Validate si_prefix arg
+    #     format_si_prefix(0, si_prefix)
+    #
+    #     old_level = logger.level
+    #
+    #     GLOBAL_SCOPE.in_tuning = True
+    #     i = error_ct = 0
+    #     errors = []
+    #     while i < n_trial:
+    #         if not self.has_next():
+    #             break
+    #
+    #         # TODO tuner needs a custom pipeline to evaluate crossover reward, then mutation reward.
+    #         configs = self.next_batch(min(n_parallel, n_trial - i))
+    #
+    #         inputs = [MeasureInput(self.task.target, self.task, config) for config in configs]
+    #         results = measure_batch(inputs)
+    #
+    #         # keep best config
+    #         for k, (inp, res) in enumerate(zip(inputs, results)):
+    #             config = inp.config
+    #             if res.error_no == 0:
+    #                 flops = inp.task.flop / np.mean(res.costs)
+    #                 error_ct = 0
+    #             else:
+    #                 flops = 0
+    #                 error_ct += 1
+    #                 error = res.costs[0]
+    #                 if isinstance(error, str):
+    #                     errors.append(error)
+    #                 else:
+    #                     errors.append(str(error))
+    #
+    #             if flops > self.best_flops:
+    #                 self.best_flops = flops
+    #                 self.best_config = config
+    #                 self.best_measure_pair = (inp, res)
+    #                 self.best_iter = i + k
+    #
+    #             logger.debug(
+    #                 "No: %d\t%sFLOPS: %.2f/%.2f\tresult: %s\t%s",
+    #                 i + k + 1,
+    #                 si_prefix,
+    #                 format_si_prefix(flops, si_prefix),
+    #                 format_si_prefix(self.best_flops, si_prefix),
+    #                 res,
+    #                 config,
+    #                 )
+    #
+    #         i += len(results)
+    #         self.ttl = min(early_stopping + self.best_iter, n_trial) - i
+    #
+    #         self.update(inputs, results)
+    #         for callback in callbacks:
+    #             callback(self, inputs, results)
+    #
+    #         if i >= self.best_iter + early_stopping:
+    #             logger.debug("Early stopped. Best iter: %d.", self.best_iter)
+    #             break
+    #
+    #         if error_ct > 150:
+    #             logging.basicConfig()
+    #             logger.warning("Too many errors happen in the tuning. Switching to debug mode.")
+    #             logger.setLevel(logging.DEBUG)
+    #         else:
+    #             logger.setLevel(old_level)
+    #
+    #     if error_ct == i:
+    #         _, f = tempfile.mkstemp(prefix="tvm_tuning_errors_", suffix=".log", text=True)
+    #         with open(f, "w") as file:
+    #             file.write("\n".join(errors))
+    #         logging.warning(
+    #             "Could not find any valid schedule for task %s. "
+    #             "A file containing the errors has been written to %s.",
+    #             self.task,
+    #             f,
+    #         )
+    #     GLOBAL_SCOPE.in_tuning = False
+    #     del measure_batch
 
     def save_model(self, save_path, save_name):
         """Save the current model."""
