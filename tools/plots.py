@@ -43,7 +43,6 @@ class DynamicPlot:
     def save(self, save_path, save_name):
         self.figure.savefig(save_path + "/" + save_name + ".png")
         with open(save_path + "/" + save_name + ".pkl", "wb") as f:
-            print("SAVING MODEL")
             pickle.dump(self.title, f)
             pickle.dump(self.x_label, f)
             pickle.dump(self.y_label, f)
@@ -113,7 +112,7 @@ class DynamicScatterPlot(DynamicPlot):
         return DynamicScatterPlot(title, x_label, y_label, x_data, y_data, area)
 
 
-def comparison_plot(save_path, save_name, title, x_label, y_label, first_data, second_data):
+def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x_data):
     figure, axes = plt.subplots()
     axes.set_autoscalex_on(True)
     axes.set_autoscaley_on(True)
@@ -122,20 +121,19 @@ def comparison_plot(save_path, save_name, title, x_label, y_label, first_data, s
     axes.set_xlabel(x_label)
     axes.set_ylabel(y_label)
 
-    scores_stack_1 = np.dstack(tuple(x for x in first_data))[0]
+    scores_stack_1 = np.dstack(tuple(x for x in y1_data))[0]
     avg_scores_1 = np.mean(scores_stack_1, axis=1)
     min_scores_1 = np.percentile(scores_stack_1, 10, axis=1)
     max_scores_1 = np.percentile(scores_stack_1, 90, axis=1)
-    scores_stack_2 = np.dstack(tuple(x for x in second_data))[0]
+    scores_stack_2 = np.dstack(tuple(x for x in y2_data))[0]
     avg_scores_2 = np.mean(scores_stack_2, axis=1)
     min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
     max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
-    steps = np.arange(0, len(first_data[0]))
 
-    plt.plot(steps, avg_scores_1, '-r', label="ga-dqn")
-    plt.fill_between(steps, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
-    plt.plot(steps, avg_scores_2, '-g', label="ga")
-    plt.fill_between(steps, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
+    plt.plot(x_data, avg_scores_1, '-r', label="ga-dqn")
+    plt.fill_between(x_data, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
+    plt.plot(x_data, avg_scores_2, '-g', label="ga")
+    plt.fill_between(x_data, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
     plt.legend(loc="lower right")
     plt.show()
 

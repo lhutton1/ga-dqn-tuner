@@ -1,16 +1,22 @@
 import argparse
 import json
+import os
 
 
 def driver():
     """
-    Benchmark tools command line driver.
+    TVM tools command line driver.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--method", required=True, help="Select method type tune/benchmark")
+    parser.add_argument("-m", "--method", required=True, help="Select method type tune/benchmark/experiment")
     parser.add_argument("-c", "--config", required=True, help="JSON configuration for specified method")
     args = parser.parse_args()
-    json_config = json.loads(args.config)
+
+    if os.path.exists(args.config):
+        with open(args.config) as f:
+            json_config = json.load(f)
+    else:
+        json_config = json.loads(args.config)
 
     # run specified method
     if args.method == "tune":

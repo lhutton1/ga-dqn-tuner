@@ -35,7 +35,8 @@
     "experiments": {
         "save_path": "experiment_run/",
         "save_name": "example_model",
-        "names": ["trial_hyperparameters"]
+        "names": ["trial_hyperparameters"],
+        "previous_results_dir": "prev_results/"
     },
     "target": "cuda"
 }

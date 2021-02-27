@@ -28,6 +28,7 @@ def run_experiments(json_config):
     if not isinstance(names, list):
         raise ValueError("names of experiments must be specified as list")
 
+    # prevents ga/gadqn evaluation running twice when there are multiple experiments.
     has_run_trial_ga = False
     has_run_trial_gadqn = False
 
@@ -45,12 +46,15 @@ def run_experiments(json_config):
         has_run_trial_gadqn = True
     if "compare_gadqn_ga" in names:
         print("Comparing ga with gadqn.")
+        ga_results_dir = config.get("previous_results_dir") or None
         no_trials = 10
-        if not has_run_trial_ga:
+        if not has_run_trial_ga and not ga_results_dir:
             trial_ga(save_path, save_name, trials=no_trials)
         if not has_run_trial_gadqn:
             trial_gadqn(save_path, save_name, trials=no_trials)
-        compare_gadqn_with_ga(save_path, save_name, expected_trials=no_trials)
+
+        compare_gadqn_with_ga(save_path, save_name,
+                              expected_trials=no_trials, prev_results_dir=ga_results_dir)
 
 
 def _get_relay_convolution():
@@ -245,7 +249,7 @@ def trial_gadqn(save_path, save_name, trials=10):
                                      discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
 
 
-def compare_gadqn_with_ga(save_path, save_name, expected_trials):
+def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_dir=None):
     """
     Compare iterations of ga with iterations of its dqn counterpart.
     Average and log these results in a graph.
@@ -257,20 +261,26 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials):
 
     gadqn_tuning = []
     ga_tuning = []
+    steps = None
 
     # collect best score results
     for i in range(expected_trials):
-        gadqn_name = save_name + "_gadqn_trial=" + str(i) + "/"
-        gadqn_tuning.append(DynamicPlot.load(save_path + gadqn_name, "best_score").y_data)
-        ga_name = save_name + "_ga_trial=" + str(i) + "/"
-        ga_tuning.append(DynamicPlot.load(save_path + ga_name, "best_score").y_data)
+        gadqn_path = save_path + save_name + "_gadqn_trial=" + str(i)
+        y_data = DynamicPlot.load(gadqn_path, "best_score").y_data
+        if not steps:
+            steps = DynamicPlot.load(gadqn_path, "best_score").x_data
+        gadqn_tuning.append(y_data)
+        ga_path = prev_results_dir if prev_results_dir else save_path + save_name
+        ga_path = ga_path + "_ga_trial=" + str(i)
+        y_data = DynamicPlot.load(ga_path, "best_score").y_data
+        ga_tuning.append(y_data)
 
+    # create new graph displaying averages of both plots
     comparison_plot(save_path,
                     "best_score_comparison",
                     "Best score comparison",
                     "steps",
                     "best score",
                     gadqn_tuning,
-                    ga_tuning)
-    # create new graph displaying averages of both plots
-
+                    ga_tuning,
+                    steps)
