@@ -112,6 +112,70 @@ class DynamicScatterPlot(DynamicPlot):
         return DynamicScatterPlot(title, x_label, y_label, x_data, y_data, area)
 
 
+class DualDynamicPlot:
+    """
+    Create a matplotlib graph which can be dynamically updated
+    as more points become available.
+    """
+    def __init__(self, title="", x_label="", y_label="", data1_label="", data2_label="",
+                 x1=None, y1=None, x2=None, y2=None):
+        self.figure, self.axes = plt.subplots(1, 1)
+        self.axes.set_autoscalex_on(True)
+        self.axes.set_autoscaley_on(True)
+
+        self.title = title
+        self.x_label = x_label
+        self.y_label = y_label
+        self.figure.suptitle(title)
+        self.axes.set_xlabel(x_label)
+        self.axes.set_ylabel(y_label)
+
+        self.data = [
+            (x1 if x1 else [], y1 if y1 else []),
+            (x2 if x2 else [], y2 if y2 else [])
+        ]
+        self.lines = []
+        self.line_labels = [data1_label, data2_label]
+        for i, data in enumerate(self.data):
+            self.lines.append(self.axes.plot(*data, label=self.line_labels[i])[0])
+
+    def update_plot(self, new_x, new_y, is_secondary=False):
+        idx = 1 if is_secondary else 0
+        data = self.data[idx]
+        lines = self.lines[idx]
+        for i, new_data in enumerate([new_x, new_y]):
+            data[i].append(new_data)
+        lines.set_xdata(data[0])
+        lines.set_ydata(data[1])
+
+        self.axes.relim()
+        self.axes.autoscale_view()
+        self.axes.legend(loc="lower right")
+        self.figure.canvas.draw_idle()
+        self.figure.canvas.flush_events()
+
+    def save(self, save_path, save_name):
+        self.figure.savefig(save_path + "/" + save_name + ".png")
+        with open(save_path + "/" + save_name + ".pkl", "wb") as f:
+            pickle.dump(self.title, f)
+            pickle.dump(self.x_label, f)
+            pickle.dump(self.y_label, f)
+            pickle.dump(self.line_labels, f)
+            pickle.dump(self.data, f)
+
+    @staticmethod
+    def load(load_path, load_name):
+        with open(load_path + "/" + load_name + ".pkl", "rb") as f:
+            title = pickle.load(f)
+            x_label = pickle.load(f)
+            y_label = pickle.load(f)
+            line_labels = pickle.load(f)
+            data = pickle.load(f)
+
+        return DualDynamicPlot(title, x_label, y_label, line_labels[0], line_labels[1], data[0][0], data[0][1],
+                               data[1][0], data[1][1])
+
+
 def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x_data):
     figure, axes = plt.subplots()
     axes.set_autoscalex_on(True)

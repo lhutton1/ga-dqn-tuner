@@ -16,14 +16,8 @@ class ReplayMemory(object):
     Experience replay memory allows the DQN network to retain previous experiences.
     """
     def __init__(self, capacity, device):
-        """Initialise empty experience replay buffer.
-
-        Parameters
-        ----------
-        capacity: int
-            The maximum capacity of the buffer.
-        device: torch.device
-            The device to sample to.
+        """
+        Initialise empty experience replay buffer.
         """
         self.capacity = capacity
         self.device = device
@@ -31,14 +25,8 @@ class ReplayMemory(object):
         self.idx = 0
 
     def store(self, value):
-        """Store a value in replay memory.
-
-        Parameters
-        ----------
-        value: Tuple
-            new value to store consisting of (current state, action taken,
-            the next state, the reward received and whether the episode is
-            done.
+        """
+        Store a value in replay memory.
         """
         if len(self.buffer) < self.capacity:
             self.buffer.append(value)
@@ -47,17 +35,8 @@ class ReplayMemory(object):
         self.idx = (self.idx+1) % self.capacity  # note in original about circular memory
 
     def sample(self, batch_size, device):
-        """Sample random values from replay memory.
-
-         Parameters
-         ----------
-        batch_size:
-            The number of values to sample from memory.
-
-        Returns
-        -------
-        Tuple of saved state, the action taken, the resulting state, the reward
-        and whether or not the episode is completed.
+        """
+        Sample random values from replay memory.
         """
         transitions = np.array(random.sample(self.buffer, batch_size))
         states = torch.tensor(transitions[:, 0].tolist(), dtype=torch.float32).to(device)
@@ -76,16 +55,8 @@ class ReplayMemory(object):
 class DQNModel(nn.Module):
     """A simple DQN model."""
     def __init__(self, input_size, output_size, hidden_size=256):
-        """Create a simple DQN model with 3 linear layers.
-
-        Parameters
-        ----------
-        input_size: int
-            Size of the input parameters.
-        output_size: int
-            Size of the output parameters.
-        hidden_size: int
-            Size of the hidden layers.
+        """
+        Create a simple DQN model with 3 linear layers.
         """
         super(DQNModel, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
@@ -94,18 +65,8 @@ class DQNModel(nn.Module):
         self.optimizer = torch.optim.Adam(self.parameters())
 
     def forward(self, inp):
-        """Compute the forward pass.
-
-        Uses ReLu activation.
-
-        Parameters
-        ----------
-        inp:
-            Input for the forward pass.
-
-        Returns
-        -------
-        Output after forward pass.
+        """
+        Compute the forward pass.
         """
         layer1 = F.relu(self.linear1(inp))
         layer2 = F.relu(self.linear2(layer1))
@@ -121,6 +82,7 @@ class DQNModel(nn.Module):
 
 class DQNAgent(object):
     def __init__(self,
+                 name,
                  device,
                  state_size,
                  action_size,
@@ -139,28 +101,8 @@ class DQNAgent(object):
         to play simple games using a framework called Gym.
 
         The agent uses an experience replay memory with a policy network to update a target network.
-
-        Parameters
-        ----------
-        device:
-            The device to store tensors on.
-        state_size:
-            The size of the state space.
-        action_size:
-            The size of the action space.
-        discount:
-            The discount value for future reward.
-        eps_max:
-            The max value of epsilon.
-        eps_min:
-            The min value of epsilon.
-        eps_decay:
-            The decay factor of epsilon.
-        memory_capacity:
-            The memory capacity used for replay memory.
-        debug:
-            Enable/disable debug mode.
         """
+        self.name = name
         self.device = device
         self.debug = debug
 
@@ -215,11 +157,6 @@ class DQNAgent(object):
         step 8 - Determine loss from values found in steps 3 and 7, and perform optimization step.
         step 9 - Increment state using observation from step 5.
         step 10 - Repeat steps 2-9 for a determined number of episodes.
-
-        Parameters
-        ---------
-        batch_size: int
-            Training batch size, determines the amount of replay memory to look at.
         """
         if len(self.memory) < batch_size:
             # don't learn if memory not fully initialised
