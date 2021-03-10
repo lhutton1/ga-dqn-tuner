@@ -6,14 +6,14 @@ import tvm
 from tvm import relay
 from tvm import autotvm
 from tvm.relay import testing
-from tvm.autotvm.tuner.rl_optimizer.rl_ga_tuner import DQNGATuner
+from .ga_dqn_tuner import DQNGATuner
 
 target = tvm.target.Target("cuda")
 
 
 def _get_relay_convolution():
     """
-    Create simply relay convolution.
+    Create simple relay convolution.
     """
     dtype = "float32"
     shape = (1, 3, 8, 8)

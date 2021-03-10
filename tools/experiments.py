@@ -5,7 +5,7 @@ from tvm import relay
 from tvm.relay import testing
 from tvm import autotvm
 
-from rl_tuner.ga_tuner import DQNGATuner
+from rl_tuner.ga_dqn_tuner import DQNGATuner
 from ga_tuner.ga_tuner import GATuner
 from .plots import *
 
@@ -48,10 +48,10 @@ def run_experiments(json_config):
         print("Comparing ga with gadqn.")
         ga_results_dir = config.get("previous_results_dir") or None
         no_trials = 10
-        if not has_run_trial_ga and not ga_results_dir:
-            trial_ga(save_path, save_name, trials=no_trials)
         if not has_run_trial_gadqn:
             trial_gadqn(save_path, save_name, trials=no_trials)
+        if not has_run_trial_ga and not ga_results_dir:
+            trial_ga(save_path, save_name, trials=no_trials)
 
         compare_gadqn_with_ga(save_path, save_name,
                               expected_trials=no_trials, prev_results_dir=ga_results_dir)
@@ -88,8 +88,7 @@ def _test_convolution_with_dqnga(save_path,
     print(f"Running experiment with settings: n trial: {n_trial}, "
           f"early stopping: {early_stopping}, learn start: {learn_start}, "
           f"memory capacity: {memory_capacity}, update frequency: {update_frequency}, "
-          f"discount: {discount}, ep max: {epsilon_max}, ep min: {epsilon_min},"
-          f"ep decay: {epsilon_decay}")
+          f"discount: {discount}, ep decay: {epsilon_decay}")
 
     mod, params = _get_relay_convolution()
     tasks = autotvm.task.extract_from_program(
@@ -104,10 +103,9 @@ def _test_convolution_with_dqnga(save_path,
     tuner_obj = DQNGATuner(tasks[0],
                            learn_start=learn_start,
                            memory_capacity=memory_capacity,
-                           update_frequency=update_frequency,
+                           target_update_frequency=update_frequency,
                            discount=discount,
-                           epsilon=(epsilon_max, epsilon_min, epsilon_decay),
-                           pop_size=pop_size,
+                           epsilon_decay=epsilon_decay,
                            debug=True)
     tuner_obj.tune(
         n_trial=n_trial,

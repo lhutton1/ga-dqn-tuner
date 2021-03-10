@@ -8,7 +8,7 @@ from tvm.autotvm.tuner import GridSearchTuner
 from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
 
-from ..rl_tuner.ga_tuner import DQNGATuner
+from ..rl_tuner.ga_dqn_tuner import DQNGATuner
 from get_model import get_model
 
 

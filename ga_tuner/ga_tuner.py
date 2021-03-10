@@ -1,7 +1,9 @@
 """
-Exact copy of tuner with genetic algorithm from TVM (python/tvm/autotvm/tuner) with added debugging.
+Exact copy of tuner with genetic algorithm from TVM (python/tvm/autotvm/tuner/ga_tuner.py)
+with added debugging.
 
-THIS WORK IS NOT MY OWN. It has been added here for convenience. It is part of the TVM project.
+DISCLAIMER: THIS WORK IS NOT MY OWN. It has been added here for convenience and testing purposes.
+It is part of the TVM project.
 """
 
 from os import mkdir
