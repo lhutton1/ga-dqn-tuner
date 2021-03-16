@@ -259,19 +259,22 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
 
     gadqn_tuning = []
     ga_tuning = []
-    steps = None
+    gadqn_steps = None
+    ga_steps = None
 
     # collect best score results
     for i in range(expected_trials):
         gadqn_path = save_path + save_name + "_gadqn_trial=" + str(i)
         y_data = DynamicPlot.load(gadqn_path, "best_score").y_data
-        if not steps:
-            steps = DynamicPlot.load(gadqn_path, "best_score").x_data
+        if not gadqn_steps:
+            gadqn_steps = DynamicPlot.load(gadqn_path, "best_score").x_data
         gadqn_tuning.append(y_data)
         ga_path = prev_results_dir if prev_results_dir else save_path + save_name
         ga_path = ga_path + "_ga_trial=" + str(i)
         y_data = DynamicPlot.load(ga_path, "best_score").y_data
         ga_tuning.append(y_data)
+        if not ga_steps:
+            ga_steps = DynamicPlot.load(ga_path, "best_score").x_data
 
     # create new graph displaying averages of both plots
     comparison_plot(save_path,
@@ -281,4 +284,5 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
                     "best score",
                     gadqn_tuning,
                     ga_tuning,
-                    steps)
+                    gadqn_steps,
+                    ga_steps)

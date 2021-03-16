@@ -176,7 +176,7 @@ class DualDynamicPlot:
                                data[1][0], data[1][1])
 
 
-def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x_data):
+def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x1_data, x2_data):
     figure, axes = plt.subplots()
     axes.set_autoscalex_on(True)
     axes.set_autoscaley_on(True)
@@ -194,10 +194,10 @@ def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_d
     min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
     max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
 
-    plt.plot(x_data, avg_scores_1, '-r', label="ga-dqn")
-    plt.fill_between(x_data, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
-    plt.plot(x_data, avg_scores_2, '-g', label="ga")
-    plt.fill_between(x_data, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
+    plt.plot(x1_data, avg_scores_1, '-r', label="ga-dqn")
+    plt.fill_between(x1_data, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
+    plt.plot(x2_data[0:], avg_scores_2, '-g', label="ga")
+    plt.fill_between(x2_data, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
     plt.legend(loc="lower right")
     plt.show()
 

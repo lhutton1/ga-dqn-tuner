@@ -91,16 +91,17 @@ class GATuner(Tuner):
         return ret
 
     def update(self, inputs, results):
-        for inp, res in zip(inputs, results):
+        for i, (inp, res) in enumerate(zip(inputs, results)):
             if res.error_no == 0:
                 y = inp.task.flop / np.mean(res.costs)
                 self.scores.append(y)
             else:
                 self.scores.append(0.0)
 
+            if self.debug:
+                self.best_score_plot.update_plot(self.steps + i, round(self.best_flops / 1000000000, 2))
+
         self.steps += len(results)
-        if self.debug:
-            self.best_score_plot.update_plot(self.steps, round(self.best_flops / 1000000000, 2))
 
         if len(self.scores) >= len(self.genes) and len(self.visited) < len(self.space):
             genes = self.genes + self.elites

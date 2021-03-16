@@ -29,8 +29,9 @@ logger = logging.getLogger("autotvm")
 
 
 class Transition:
-    def __init__(self, prev_gene, action, gene, score=None):
-        self.prev_gene = prev_gene
+    def __init__(self, prev_state, state, action, gene, score=None):
+        self.prev_state = prev_state
+        self.state = state
         self.action = action
         self.gene = gene
         self.score = score
@@ -46,7 +47,7 @@ class DQNGATuner(Tuner):
                  target_update_frequency=50,
                  train_frequency=8,
                  discount=0.99,
-                 epsilon_decay=0.95,
+                 epsilon_decay=0.99,
                  agent_batch_size=32,
                  memory_capacity=200,
                  debug=True):
@@ -97,7 +98,7 @@ class DQNGATuner(Tuner):
                                   eps_min=eps_min,
                                   eps_decay=eps_decay,
                                   memory_capacity=memory_capacity)
-        state_space_size = len(self.dims)
+        state_space_size = len(self.dims) * 2
         action_space_size = len(self.dims) - 1
         crossover_agent = DQNAgent("crossover",
                                    device,
@@ -143,15 +144,15 @@ class DQNGATuner(Tuner):
         #logger.addHandler(ch)
         #logger.setLevel(logging.DEBUG)
 
-    def swap_elites(self):
+    def reserve_elites(self):
         """
         Swap elite genes with elite genes from previous population.
         """
         scores = [t.score for t in self.population]
         elite_indexes = np.argpartition(scores, -self.elite_num)[-self.elite_num:]
-        for i, elite_idx in enumerate(elite_indexes):
-            self.elite_population[i], self.population[elite_idx] = \
-                self.population[elite_idx], self.elite_population[i]
+        self.elite_population = []
+        for idx in elite_indexes:
+            self.elite_population.append(self.population[idx])
 
     def rl_mutate(self):
         """
@@ -167,10 +168,18 @@ class DQNGATuner(Tuner):
 
             if len(self.visited) < len(self.space):
                 action = self.mutation_agent.select_action(gene)
-                # action value of 0 means no mutation occurs
+                # Action value of 0 means no mutation occurs
                 if action != 0:
                     next_gene[action-1] = np.random.randint(self.dims[action-1])
-                self.population[i] = Transition(gene, action, next_gene)
+
+                    # If next gene already visited, fallback to random mutation.
+                    while knob2point(next_gene, self.dims) in self.visited:
+                        action = np.random.randint(len(self.dims))
+                        next_gene[action] = np.random.randint(
+                            self.dims[action]
+                        )
+
+                self.population[i] = Transition(gene, next_gene, action, next_gene)
                 self.visited.add(knob2point(gene, self.dims))
             else:
                 break
@@ -195,14 +204,20 @@ class DQNGATuner(Tuner):
         scores += 1e-8
         scores /= np.max(scores)
         probabilities = scores / np.sum(scores)
+        tmp_genes = []
 
-        for i in range(len(self.population)):
+        for i in range(self.pop_size):
             p1, p2 = np.random.choice(indices, size=2, replace=False, p=probabilities)
             p1, p2 = self.population[p1].gene, self.population[p2].gene
             # TODO the agent should be aware of both the genes involved in cross over. Could the difference be taken?
-            point = self.crossover_agent.select_action(p1)
+            #state = p1 + p2
+            #point = self.crossover_agent.select_action(state)
+            point = np.random.randint(len(self.dims))
             next_gene = p1[:point] + p2[point:]
-            self.population[i] = Transition(p1, point, next_gene)
+            #next_state = next_gene + [0] * len(next_gene)
+            tmp_genes.append(Transition(None, None, point, next_gene))
+
+        self.population = tmp_genes
 
         # Debugging
         if self.debug:
@@ -232,8 +247,7 @@ class DQNGATuner(Tuner):
                     reward = 0
                 else:
                     reward = (score * -1) / scale
-                # TODO is it better to apply best flops here after each step?
-                agent.memory.store([transition.prev_gene, transition.action, transition.gene, reward, False])
+                agent.memory.store([transition.prev_state, transition.action, transition.state, reward, False])
 
                 # Train DQN
                 steps = self.step_count + i
@@ -357,22 +371,18 @@ class DQNGATuner(Tuner):
                     gene = point2knob(np.random.randint(len(self.space)), self.dims)
                     while knob2point(gene, self.dims) in self.visited:
                         gene = point2knob(np.random.randint(len(self.space)), self.dims)
-                    transition = Transition(None, None, gene)
+                    transition = Transition(None, None, None, gene)
                     self.population.append(transition)
                     self.visited.add(knob2point(gene, self.dims))
 
                 self.measure_configs(n_parallel, measure_batch)
-
-                # Reserve initial elites.
-                scores = [t.score for t in self.population]
-                elite_indexes = np.argpartition(scores, -self.elite_num)[-self.elite_num:]
-                for elite_idx in elite_indexes:
-                    self.elite_population.append(self.population[elite_idx])
+                self.reserve_elites()
             else:
-                self.swap_elites()
+                self.population.extend(self.elite_population)
+                self.reserve_elites()
                 self.rl_crossover()
-                self.measure_configs(n_parallel, measure_batch)
-                self.update(self.crossover_agent)
+                #self.measure_configs(n_parallel, measure_batch)
+                #self.update(self.crossover_agent)
                 self.rl_mutate()
                 self.measure_configs(n_parallel, measure_batch)
                 self.update(self.mutation_agent)

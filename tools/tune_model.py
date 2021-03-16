@@ -70,7 +70,7 @@ def tune_model(mod, params, tune_settings, target):
 
         # save debug info for rl tuner only
         if tuner == "ga-dqn":
-            tuner_obj.save_model(save_path, save_name)
+            tuner_obj.save_model(save_path, save_name + "_layer=" + str(i))
 
 
 def tune_models(data):

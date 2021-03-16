@@ -52,6 +52,38 @@ class ReplayMemory(object):
         return len(self.buffer)
 
 
+# class DQNModel(nn.Module):
+#     """A simple DQN model."""
+#     def __init__(self, input_size, output_size, hidden_size=256):
+#         """
+#         Create a simple DQN model with 3 linear layers.
+#         """
+#         super(DQNModel, self).__init__()
+#         #self.linear1 = nn.Linear(input_size, hidden_size)
+#         #self.linear2 = nn.Linear(hidden_size, hidden_size)
+#         self.linear2 = nn.LSTM(input_size, hidden_size, num_layers=2)
+#         self.linear3 = nn.Linear(hidden_size, output_size)
+#         self.optimizer = torch.optim.Adam(self.parameters())
+#
+#     def forward(self, inp):
+#         """
+#         Compute the forward pass.
+#         """
+#         #layer1 = F.relu(self.linear1(inp))
+#         #layer1 = layer1[None, :, :]
+#         inp = inp[None, :, :]
+#         layer2, _ = self.linear2(inp)
+#         layer2 = torch.squeeze(layer2)
+#         out = self.linear3(layer2)
+#         return out
+#
+#     def save_model(self, filename):
+#         torch.save(self.state_dict(), filename)
+#
+#     def load_model(self, filename):
+#         self.load_state_dict(torch.load(filename))
+
+
 class DQNModel(nn.Module):
     """A simple DQN model."""
     def __init__(self, input_size, output_size, hidden_size=256):
