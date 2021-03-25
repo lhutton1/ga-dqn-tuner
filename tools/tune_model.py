@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+from pathlib import Path
 
 import tvm
 from tvm import autotvm
@@ -8,16 +8,21 @@ from tvm.autotvm.tuner import GridSearchTuner
 from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
 
-from ..rl_tuner.ga_dqn_tuner import DQNGATuner
-from get_model import get_model
+from rl_tuner.ga_dqn_tuner import GADQNTuner
+from .get_model import get_model
 
 
 def tune_model(mod, params, tune_settings, target):
+    """
+    Tune a model for a specified number of trials along with other tune settings.
+    Tune settings are specified using a json configuration, as per the TVM tools readme.
+    """
     early_stopping = tune_settings['early_stopping']
     number = tune_settings["number"]
     save_path = tune_settings["save_path"]
     save_name = tune_settings["save_name"]
     repeat = tune_settings["repeat"]
+    debug = True if tune_settings.get("debug_gadqn") else False
     trials = tune_settings["trials"]
     tuner = tune_settings["tuner"]
     target = tvm.target.Target(target)
@@ -26,13 +31,11 @@ def tune_model(mod, params, tune_settings, target):
         mod["main"],
         target=target,
         target_host="llvm",
-        params=params,
-    )
+        params=params)
 
     runner = autotvm.LocalRunner(
         number=number,
-        repeat=repeat
-    )
+        repeat=repeat)
 
     measure_option = autotvm.measure_option(
             builder=autotvm.LocalBuilder(build_func="default"), runner=runner)
@@ -54,9 +57,13 @@ def tune_model(mod, params, tune_settings, target):
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
         elif tuner == "ga-dqn":
-            tuner_obj = DQNGATuner(tsk, debug=True)
+            tuner_obj = GADQNTuner(tsk, debug=debug)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
+
+        abs_path = Path(save_path + save_name).resolve()
+        abs_path.mkdir(exist_ok=True, parents=True)
+        abs_path_str = str(abs_path)
 
         tuner_obj.tune(
             n_trial=min(trials, len(tsk.config_space)),
@@ -64,16 +71,19 @@ def tune_model(mod, params, tune_settings, target):
             measure_option=measure_option,
             callbacks=[
                 autotvm.callback.progress_bar(trials, prefix=prefix),
-                autotvm.callback.log_to_file(save_path + save_name + "/tuning_record.json"),
+                autotvm.callback.log_to_file(abs_path_str + "/tuning_record.json"),
             ],
         )
 
-        # save debug info for rl tuner only
-        if tuner == "ga-dqn":
+        # Save debug info for rl tuner only
+        if tuner == "ga-dqn" and debug:
             tuner_obj.save_model(save_path, save_name + "_layer=" + str(i))
 
 
 def tune_models(data):
+    """
+    Auto tune all models referenced in the json configuration.
+    """
     target_string = data['target']
     tune_settings = data['autotuner_settings']
 

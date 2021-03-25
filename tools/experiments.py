@@ -5,7 +5,7 @@ from tvm import relay
 from tvm.relay import testing
 from tvm import autotvm
 
-from rl_tuner.ga_dqn_tuner import DQNGATuner
+from rl_tuner.ga_dqn_tuner import GADQNTuner
 from ga_tuner.ga_tuner import GATuner
 from .plots import *
 
@@ -100,7 +100,7 @@ def _test_convolution_with_dqnga(save_path,
     measure_option = autotvm.measure_option(builder=autotvm.LocalBuilder(build_func="default"),
                                             runner=runner)
     prefix = f"[Task 1/1]"
-    tuner_obj = DQNGATuner(tasks[0],
+    tuner_obj = GADQNTuner(tasks[0],
                            learn_start=learn_start,
                            memory_capacity=memory_capacity,
                            target_update_frequency=update_frequency,
@@ -157,8 +157,8 @@ def trial_parameters(save_path, save_name):
     n_trial = 2000
     early_stopping = 1e9
     learn_start = 100
-    memory_capacity = 200
-    update_frequency = 50
+    memory_capacity = 300
+    update_frequency = 64
     discount = 0.99
     epsilon = (0.9, 0.05, 0.95)
     pop_size = 16
@@ -234,8 +234,8 @@ def trial_gadqn(save_path, save_name, trials=10):
     n_trial = 2000
     early_stopping = 1e9
     learn_start = 100
-    memory_capacity = 200
-    update_frequency = 50
+    memory_capacity = 300
+    update_frequency = 64
     discount = 0.99
     epsilon = (0.9, 0.05, 0.95)
     pop_size = 16
@@ -276,7 +276,7 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
         if not ga_steps:
             ga_steps = DynamicPlot.load(ga_path, "best_score").x_data
 
-    # create new graph displaying averages of both plots
+    # Create new graph displaying averages of both plots
     comparison_plot(save_path,
                     "best_score_comparison",
                     "Best score comparison",

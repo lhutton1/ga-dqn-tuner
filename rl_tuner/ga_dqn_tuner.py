@@ -21,7 +21,7 @@ from tvm.autotvm.measure import MeasureInput, create_measure_batch
 from tvm.autotvm.util import format_si_prefix
 from tvm.autotvm.env import GLOBAL_SCOPE
 
-from .model import DQNAgent
+from .dqn_model import DQNAgent
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +29,12 @@ logger = logging.getLogger("autotvm")
 
 
 class Transition:
-    def __init__(self, prev_state, state, action, gene, score=None):
+    """
+    A transition (otherwise called experience) is an object
+    that contains data required for each interaction of the agent
+    with the environment.
+    """
+    def __init__(self, prev_state, state, action, gene, score=None, prediction=None):
         self.prev_state = prev_state
         self.state = state
         self.action = action
@@ -39,19 +44,28 @@ class Transition:
         self.input = None
         self.result = None
 
+        # Debugging
+        self.prediction = prediction
 
-class DQNGATuner(Tuner):
+
+class GADQNTuner(Tuner):
+    """
+    The GA-DQN tuner.
+
+    Applies a genetic algorithm using reinforcement learning
+    for mutation and crossover.
+    """
     def __init__(self,
                  task,
                  learn_start=100,
                  target_update_frequency=50,
-                 train_frequency=8,
+                 train_frequency=16,
                  discount=0.99,
                  epsilon_decay=0.99,
                  agent_batch_size=32,
                  memory_capacity=200,
                  debug=True):
-        super(DQNGATuner, self).__init__(task)
+        super(GADQNTuner, self).__init__(task)
 
         # Initialise debugging
         if debug:
@@ -86,7 +100,6 @@ class DQNGATuner(Tuner):
         """
         Create DQN agents for both mutation and crossover.
         """
-        eps_max, eps_min, eps_decay = self.epsilon
         state_space_size = len(self.dims)
         action_space_size = len(self.dims) + 1
         mutation_agent = DQNAgent("mutate",
@@ -94,9 +107,7 @@ class DQNGATuner(Tuner):
                                   state_space_size,
                                   action_space_size,
                                   discount=discount,
-                                  eps_max=eps_max,
-                                  eps_min=eps_min,
-                                  eps_decay=eps_decay,
+                                  eps=self.epsilon,
                                   memory_capacity=memory_capacity)
         state_space_size = len(self.dims) * 2
         action_space_size = len(self.dims) - 1
@@ -105,9 +116,7 @@ class DQNGATuner(Tuner):
                                    state_space_size,
                                    action_space_size,
                                    discount=discount,
-                                   eps_max=eps_max,
-                                   eps_min=eps_min,
-                                   eps_decay=eps_decay,
+                                   eps=self.epsilon,
                                    memory_capacity=memory_capacity)
         return mutation_agent, crossover_agent
 
@@ -115,13 +124,15 @@ class DQNGATuner(Tuner):
         """
         Start the tuner with debugging.
         """
+
+        # Lazy import debugging packages
         import matplotlib as mpl
         mpl.use('Agg')
         from matplotlib import pyplot as plt
         from tools.plots import DynamicPlot, DualDynamicPlot, DynamicScatterPlot
         self.debug = True
 
-        # Monitoring
+        # Monitoring plots
         plt.ion()
         self.loss_plot = DualDynamicPlot("DQN Mean Squared Error loss", "steps", "loss value", "mutation", "crossover")
         self.avg_score_plot = DynamicPlot("Running average GFLOPS (avg. previous 100 measurements)", "steps",
@@ -131,7 +142,10 @@ class DQNGATuner(Tuner):
         self.action_plot_crossover = DynamicScatterPlot("Crossover action selection", "steps", "knob crossover index")
         self.best_score_plot = DynamicPlot("Best GFLOPS", "steps", "GFLOPS")
         self.reward_plot = DualDynamicPlot("Reward received", "steps", "DQN reward received", "mutation", "crossover")
+        self.prediction_plot = DynamicPlot("Prediction error", "steps",
+                                           "absolute difference between prediction and actual result")
 
+        # Additional tracking
         self.memory_capacity = memory_capacity
         self.discount = discount
         self.scores = []
@@ -154,6 +168,13 @@ class DQNGATuner(Tuner):
         for idx in elite_indexes:
             self.elite_population.append(self.population[idx])
 
+    def normalise_state(self, state):
+        """
+        Normalise a state to within 0-1 range. This improves training as it
+        removes bias of larger values.
+        """
+        return np.array(state) / np.array(self.dims)
+
     def rl_mutate(self):
         """
         Mutate genes using DQN to suggest which knob to randomly mutate.
@@ -167,19 +188,22 @@ class DQNGATuner(Tuner):
             next_gene = gene.copy()
 
             if len(self.visited) < len(self.space):
-                action = self.mutation_agent.select_action(gene)
+                action, prediction = self.mutation_agent.get_action(gene)
                 # Action value of 0 means no mutation occurs
                 if action != 0:
                     next_gene[action-1] = np.random.randint(self.dims[action-1])
 
                     # If next gene already visited, fallback to random mutation.
                     while knob2point(next_gene, self.dims) in self.visited:
+                        prediction = None
                         action = np.random.randint(len(self.dims))
                         next_gene[action] = np.random.randint(
                             self.dims[action]
                         )
 
-                self.population[i] = Transition(gene, next_gene, action, next_gene)
+                self.population[i] = Transition(self.normalise_state(gene),
+                                                self.normalise_state(next_gene),
+                                                action, next_gene, prediction=prediction)
                 self.visited.add(knob2point(gene, self.dims))
             else:
                 break
@@ -237,7 +261,8 @@ class DQNGATuner(Tuner):
 
         if self.step_count >= self.pop_size:
             for i, transition in enumerate(self.population):
-                # Calculate reward
+
+                # Calculate the reward received by the agent.
                 score = transition.score
                 if score >= self.best_flops:
                     reward = (score * reward_multiplier) / scale
@@ -247,17 +272,23 @@ class DQNGATuner(Tuner):
                     reward = 0
                 else:
                     reward = (score * -1) / scale
-                agent.memory.store([transition.prev_state, transition.action, transition.state, reward, False])
+                agent.memory.store_experience([transition.prev_state,
+                                               transition.action,
+                                               transition.state,
+                                               reward])
+
+                if transition.prediction:
+                    self.prediction_plot.update_plot(self.step_count + i, abs(transition.prediction - reward))
 
                 # Train DQN
                 steps = self.step_count + i
                 if steps > self.learn_start and i % self.train_frequency == 0:
                     loss = agent.train(self.agent_batch_size)
-                    agent.update_epsilon()
+                    agent.reduce_epsilon()
                     if self.debug and loss is not None:
                         self.loss_plot.update_plot(steps, loss.item(), is_crossover)
                 if steps % self.update_frequency == 0:
-                    agent.update_target_net()
+                    agent.increment_target()
 
                 if self.debug:
                     self.scores.append(score)
@@ -322,6 +353,7 @@ class DQNGATuner(Tuner):
             self.action_plot_mutate.save(abs_path_str, "action_mutate")
             self.action_plot_crossover.save(abs_path_str, "action_crossover")
             self.reward_plot.save(abs_path_str, "reward")
+            self.prediction_plot.save(abs_path_str, "prediction_error")
 
             params = {
                 "Learn Start": self.learn_start,
@@ -345,6 +377,7 @@ class DQNGATuner(Tuner):
             plt.close(self.action_plot_mutate.figure)
             plt.close(self.action_plot_crossover.figure)
             plt.close(self.reward_plot.figure)
+            plt.close(self.prediction_plot.figure)
 
     def tune(self, n_trial, measure_option, early_stopping=None, callbacks=(), si_prefix="G"):
         """
@@ -365,8 +398,8 @@ class DQNGATuner(Tuner):
             if not self.has_next():
                 break
 
+            # Initialise a random population.
             if self.step_count < self.pop_size:
-                # Initialise population. DISCLAIMER: This code is from GATuner.
                 for _ in range(self.pop_size):
                     gene = point2knob(np.random.randint(len(self.space)), self.dims)
                     while knob2point(gene, self.dims) in self.visited:
@@ -374,20 +407,21 @@ class DQNGATuner(Tuner):
                     transition = Transition(None, None, None, gene)
                     self.population.append(transition)
                     self.visited.add(knob2point(gene, self.dims))
-
                 self.measure_configs(n_parallel, measure_batch)
                 self.reserve_elites()
+
+            # Apply GA-DQN tuning once initial population has been created.
             else:
                 self.population.extend(self.elite_population)
                 self.reserve_elites()
                 self.rl_crossover()
-                #self.measure_configs(n_parallel, measure_batch)
-                #self.update(self.crossover_agent)
+                # self.measure_configs(n_parallel, measure_batch)
+                # self.update(self.crossover_agent)
                 self.rl_mutate()
                 self.measure_configs(n_parallel, measure_batch)
                 self.update(self.mutation_agent)
 
-            # Keep best config. DISCLAIMER most of the remaining code is from Tuner.
+            # Keep best config. DISCLAIMER most of the remaining code is from the Tuner class.
             for k, transition in enumerate(self.population):
                 if transition.score > self.best_flops:
                     self.best_flops = transition.score

@@ -89,6 +89,7 @@ python3 -m pip install -e .[test]
 python3 -m pip install packaging
 python3 -m pip install torch==1.6.0 torchvision==0.7.0 -f https://download.pytorch.org/whl/cu101/torch_stable.html
 python3 -m pip install pytorch-transformers
+python3 -m pip install pytest
 
 # Cuda paths
 export PATH=/usr/local/nvidia/bin:${PATH}

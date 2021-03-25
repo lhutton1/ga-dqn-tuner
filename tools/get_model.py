@@ -1,10 +1,12 @@
-#!/usr/bin/env python3
 import torch
 
 
 def load_torchvision(model_name):
-    """Given a model name, returns a Torchvision model in eval mode as well
-    as an example input."""
+    """
+    Given a model name, returns a Torchvision model in eval mode as well
+    as an example input.
+    """
+    # Lazy import as torchvision may not be required.
     import torchvision
 
     with torch.no_grad():
@@ -31,9 +33,15 @@ def load_torchvision(model_name):
 
 
 def load_pretrainedmodels(model_name):
-    """Given a model name, returns a pretrainedmodels.pytorch model in eval
-    mode as well as an example input."""
-    import pretrainedmodels  # https://github.com/Cadene/pretrained-models.pytorch
+    """
+    Given a model name, returns a pretrainedmodels.pytorch model in eval
+    mode as well as an example input.
+
+    Available at: https://github.com/Cadene/pretrained-models.pytorch
+    """
+
+    # Lazy import as torchvision may not be required.
+    import pretrainedmodels
 
     model = getattr(pretrainedmodels, model_name)().float().eval()
     input_shape = [1, *model.input_size]
@@ -45,8 +53,14 @@ def load_pretrainedmodels(model_name):
 
 
 def load_torchtransformers(model_name):
-    """Given a model name, returns a pytorch transformers model in eval
-    mode. Provided by HuggingFace: https://github.com/huggingface/transformers """
+    """
+    Given a model name, returns a pytorch transformers model in eval
+    mode.
+
+    Available at: https://github.com/huggingface/transformers
+    """
+
+    # There are two versions of huggingface, support both
     try:
         import pytorch_transformers
     except ModuleNotFoundError:
@@ -61,21 +75,22 @@ def load_torchtransformers(model_name):
         model = pytorch_transformers.TransfoXLModel.from_pretrained('transfo-xl-wt103', torchscript=True)
         input_data = torch.tensor([tokenizer.encode(text="Here is some text to encode", add_special_tokens=True)])
     else: 
-        raise ValueError('Model name unknown.')
+        raise ValueError(f'{model_name} is not supported. Unknown model name.')
 
     model = model.eval()
-
     return model, [input_data]
 
 
-def load_deepspeech():
+def load_deepspeech(model_name):
     """ Load DeepSpeech LSTM model from GitHub repo. 
-    
-    Pytorch frontend missing: ['aten::_pad_packed_sequence', 'aten::lstm', 
-    'aten::_pack_padded_sequence', 'aten::masked_fill', 'aten::fill_', 
-    'aten::narrow']
+
+    Unfortunately TVM does not currently support LSTM operators in the PyTorch front-end.
+    This is also the case for most other frontends.
+
+        Pytorch frontend missing: ['aten::_pad_packed_sequence', 'aten::lstm',
+        'aten::_pack_padded_sequence', 'aten::masked_fill', 'aten::fill_',
+        'aten::narrow']
     """
-    raise NotImplementedError("TVM pytorch frontend doesn't support all the required operators for this model.")
 
     # For reference:
     # from deepspeech_pytorch.model import DeepSpeech
@@ -92,9 +107,14 @@ def load_deepspeech():
     # model(input_data, input_sizes)
     # return model, [input_data, input_sizes]
 
+    raise NotImplementedError("TVM pytorch frontend doesn't support all the required "
+                              "operators for this model.")
 
-def load_simple_transformer():
-    """ A simple transformer from pytorch. """
+
+def load_simple_transformer(model_name):
+    """
+    A simple transformer from pytorch.
+    """
     model = torch.nn.Transformer(nhead=2, num_encoder_layers=1, num_decoder_layers=1)
     model = model.eval()
     src = torch.rand((10, 32, 512))
@@ -102,40 +122,33 @@ def load_simple_transformer():
     return model, [src, tgt]
 
 
-def get_model(model_name, type, input_data=[]):
-    """Assert that the output of a compiled model matches with that of its
-    baseline."""
+def get_model(model_name, type):
+    """
+    Get a PyTorch model by type and name. Returns PyTorch trace and input shape dict.
+    """
 
-    # nasty but it'll do for now
-    if type == "torchvision":
-        baseline_model, baseline_input = load_torchvision(model_name)
-    elif type == "torchtransformers":
-        baseline_model, baseline_input = load_torchtransformers(model_name)
-    elif type == "github":
-        if model_name == "deepspeech":
-            baseline_model, baseline_input = load_deepspeech()
-        else:
-            assert False, "Unexpected model name"
-    elif type == "custom":
-        if model_name == "simple_transformer":
-            baseline_model, baseline_input = load_simple_transformer()
-        else:
-            assert False, "Unexpected model name"
-    else:
-        assert False, "Unexpected type"
+    MODEL_MAP = {"torchvision":       (["*"], load_torchvision),
+                 "torchtransformers": (["bert", "transformer_xl"], load_torchtransformers),
+                 "github":            (["deepspeech"], load_deepspeech),
+                 "custom":            (["simple_transformer"], load_simple_transformer)}
 
+    if type not in MODEL_MAP:
+        raise ValueError(f'{type} is not supported. Unknown type name.')
+
+    model_map_item = MODEL_MAP[type]
+    supported_model_names = model_map_item[0]
+
+    if model_name not in supported_model_names and \
+            (len(supported_model_names) and supported_model_names[0] != "*"):
+        raise ValueError(f'{model_name} is not supported. Unknown model name.')
+
+    baseline_model, baseline_input = model_map_item[1](model_name)
+
+    # Extract model to PyTorch graph
     if torch.cuda.is_available():
         if isinstance(baseline_model, torch.nn.Module):
             baseline_model = baseline_model.cuda()
         baseline_input = [inp.cuda() for inp in baseline_input]
-
-    with torch.no_grad():
-        baseline_outputs = baseline_model(*baseline_input)
-
-    if isinstance(baseline_outputs, tuple):
-        baseline_outputs = tuple(out.cpu().numpy() for out in baseline_outputs)
-    else:
-        baseline_outputs = (baseline_outputs.cpu().numpy(),)
 
     trace = torch.jit.trace(baseline_model, baseline_input)
     if isinstance(baseline_model, torch.nn.Module):

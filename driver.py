@@ -18,7 +18,7 @@ def driver():
     else:
         json_config = json.loads(args.config)
 
-    # run specified method
+    # Run specified method
     if args.method == "tune":
         from tools.tune_model import tune_models
         tune_models(json_config)

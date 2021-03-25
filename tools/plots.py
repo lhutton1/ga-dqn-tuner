@@ -177,6 +177,10 @@ class DualDynamicPlot:
 
 
 def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x1_data, x2_data):
+    """
+    Compares two different tuners (typically ga-dqn and ga for experimentation).
+    Takes an average of a number of runs and
+    """
     figure, axes = plt.subplots()
     axes.set_autoscalex_on(True)
     axes.set_autoscaley_on(True)

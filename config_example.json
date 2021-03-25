@@ -33,9 +33,9 @@
         "repeat": 4
     },
     "experiments": {
-        "save_path": "experiment_run/",
-        "save_name": "example_model",
-        "names": ["trial_hyperparameters"],
+        "save_path": "tuning_results/experiment26/",
+        "save_name": "change_hidden_size",
+        "names": ["compare_gadqn_ga"],
         "previous_results_dir": "prev_results/"
     },
     "target": "cuda"

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo singularity build benchmark-tvm.simg Singularity
+sudo singularity build rl-tuner.simg Singularity

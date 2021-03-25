@@ -6,7 +6,7 @@ import tvm
 from tvm import relay
 from tvm import autotvm
 from tvm.relay import testing
-from .ga_dqn_tuner import DQNGATuner
+from .ga_dqn_tuner import GADQNTuner
 
 target = tvm.target.Target("cuda")
 
@@ -44,13 +44,13 @@ def test_convolution(n_trial=2000,
     measure_option = autotvm.measure_option(builder=autotvm.LocalBuilder(build_func="default"),
                                             runner=runner)
     prefix = f"[Task 1/1]"
-    tuner_obj = DQNGATuner(tasks[0],
-                         learn_start=learn_start,
-                         memory_capacity=memory_capacity,
-                         update_frequency=update_frequency,
-                         discount=discount,
-                         epsilon=epsilon,
-                         debug=True)
+    tuner_obj = GADQNTuner(tasks[0],
+                           learn_start=learn_start,
+                           memory_capacity=memory_capacity,
+                           update_frequency=update_frequency,
+                           discount=discount,
+                           epsilon=epsilon,
+                           debug=True)
     tuner_obj.tune(
         n_trial=n_trial,
         early_stopping=early_stopping,
