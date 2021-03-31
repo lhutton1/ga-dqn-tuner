@@ -5,7 +5,7 @@ from tvm import relay
 from tvm.relay import testing
 from tvm import autotvm
 
-from rl_tuner.ga_dqn_tuner import GADQNTuner
+from rl_tuner.ga_dqn_tuner import GADQNTuner, RewardFunction
 from ga_tuner.ga_tuner import GATuner
 from .plots import *
 
@@ -55,6 +55,15 @@ def run_experiments(json_config):
 
         compare_gadqn_with_ga(save_path, save_name,
                               expected_trials=no_trials, prev_results_dir=ga_results_dir)
+    if "compare_reward" in names:
+        print("Comparing reward functions.")
+        no_trials = 5
+        for reward_function in RewardFunction:
+            trial_gadqn(save_path, save_name + f"_reward={reward_function}", trials=no_trials,
+                        reward_function=reward_function)
+        trial_ga(save_path, save_name, trials=no_trials)
+
+        compare_reward_with_ga(save_path, save_name, expected_trials=no_trials)
 
 
 def _get_relay_convolution():
@@ -77,11 +86,10 @@ def _test_convolution_with_dqnga(save_path,
                                  learn_start,
                                  memory_capacity,
                                  update_frequency,
+                                 train_frequency,
                                  discount,
-                                 epsilon_max,
-                                 epsilon_min,
                                  epsilon_decay,
-                                 pop_size):
+                                 reward_function=RewardFunction.R3):
     """
     Test a simple convolution using RLTuner.
     """
@@ -104,9 +112,10 @@ def _test_convolution_with_dqnga(save_path,
                            learn_start=learn_start,
                            memory_capacity=memory_capacity,
                            target_update_frequency=update_frequency,
+                           train_frequency=train_frequency,
                            discount=discount,
                            epsilon_decay=epsilon_decay,
-                           debug=True)
+                           reward_function=reward_function)
     tuner_obj.tune(
         n_trial=n_trial,
         early_stopping=early_stopping,
@@ -214,14 +223,14 @@ def trial_ga(save_path, save_name, trials=10):
     """
     n_trial = 2000
     early_stopping = 1e9
-    pop_size = 16
+    pop_size = 100
 
     for i in range(trials):
         name = save_name + "_ga_trial=" + str(i)
         _test_convolution_with_ga(save_path, name, n_trial, early_stopping, pop_size)
 
 
-def trial_gadqn(save_path, save_name, trials=10):
+def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.R3):
     """
     Run a number of experiments for GA-DQN tuner.
 
@@ -234,17 +243,17 @@ def trial_gadqn(save_path, save_name, trials=10):
     n_trial = 2000
     early_stopping = 1e9
     learn_start = 100
-    memory_capacity = 300
-    update_frequency = 64
+    memory_capacity = 2000
+    update_frequency = 200
+    train_frequency = 4
     discount = 0.99
-    epsilon = (0.9, 0.05, 0.95)
-    pop_size = 16
+    epsilon_decay = 0.99
 
     for i in range(trials):
         name = save_name + "_gadqn_trial=" + str(i)
         _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, update_frequency,
-                                     discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
+                                     learn_start, memory_capacity, update_frequency, train_frequency,
+                                     discount, epsilon_decay, reward_function)
 
 
 def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_dir=None):
@@ -286,3 +295,48 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
                     ga_tuning,
                     gadqn_steps,
                     ga_steps)
+
+
+def compare_reward_with_ga(save_path, save_name, expected_trials, prev_results_dir=None):
+    """
+    Compare iterations of ga with iterations of its dqn counterpart.
+    Average and log these results in a graph.
+
+    Experiment Name
+    ---------------
+    compare_reward
+    """
+    gadqn_tuning = []
+    ga_tuning = []
+    gadqn_steps = None
+    ga_steps = None
+
+    # collect best score results
+    for reward_function in RewardFunction:
+        reward_tuning = []
+        for i in range(expected_trials):
+            gadqn_path = save_path + save_name + f"_reward={reward_function}_gadqn_trial=" + str(i)
+            y_data = DynamicPlot.load(gadqn_path, "best_score").y_data
+            if not gadqn_steps:
+                gadqn_steps = DynamicPlot.load(gadqn_path, "best_score").x_data
+            reward_tuning.append(y_data)
+        gadqn_tuning.append(reward_tuning)
+
+    for i in range(expected_trials):
+        ga_path = prev_results_dir if prev_results_dir else save_path + save_name
+        ga_path = ga_path + "_ga_trial=" + str(i)
+        y_data = DynamicPlot.load(ga_path, "best_score").y_data
+        ga_tuning.append(y_data)
+        if not ga_steps:
+            ga_steps = DynamicPlot.load(ga_path, "best_score").x_data
+
+    # Create new graph displaying averages of both plots
+    reward_comparison_plot(save_path,
+                           "best_score_comparison",
+                           "Best score comparison",
+                           "steps",
+                           "best score",
+                           gadqn_tuning,
+                           ga_tuning,
+                           gadqn_steps,
+                           ga_steps)

@@ -5,6 +5,7 @@ import pickle
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib import colors
 
 
 class DynamicPlot:
@@ -202,6 +203,50 @@ def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_d
     plt.fill_between(x1_data, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
     plt.plot(x2_data[0:], avg_scores_2, '-g', label="ga")
     plt.fill_between(x2_data, min_scores_2, max_scores_2, facecolor=(0, 1, 0, .3))
+    plt.legend(loc="lower right")
+    plt.show()
+
+    figure.savefig(save_path + "/" + save_name + ".png")
+
+
+def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_data, x1_data, x2_data):
+    """
+    Compares different reward functions against a ga bassline.
+    """
+    figure, axes = plt.subplots()
+    axes.set_autoscalex_on(True)
+    axes.set_autoscaley_on(True)
+
+    figure.suptitle(title)
+    axes.set_xlabel(x_label)
+    axes.set_ylabel(y_label)
+
+    reward_avg_scores = []
+    reward_min_scores = []
+    reward_max_scores = []
+
+    for reward_data in y1_data:
+        scores_stack_1 = np.dstack(tuple(x for x in reward_data))[0]
+        reward_avg_scores.append(np.mean(scores_stack_1, axis=1))
+        reward_min_scores.append(np.percentile(scores_stack_1, 10, axis=1))
+        reward_max_scores.append(np.percentile(scores_stack_1, 90, axis=1))
+
+    scores_stack_2 = np.dstack(tuple(x for x in y2_data))[0]
+    avg_scores_2 = np.mean(scores_stack_2, axis=1)
+    min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
+    max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
+
+    for reward_idx in range(len(y1_data)):
+        p = plt.plot(x1_data, reward_avg_scores[reward_idx], label=f"ga-dqn-R{reward_idx+1}")
+        p_colour = p[0].get_color()
+        colour_alpha = colors.to_rgba_array(p_colour, alpha=0.3)
+        plt.fill_between(x1_data, reward_min_scores[reward_idx], reward_max_scores[reward_idx],
+                         facecolor=colour_alpha)
+
+    p = plt.plot(x2_data[0:], avg_scores_2, label="ga")
+    p_colour = p[0].get_color()
+    colour_alpha = colors.to_rgba_array(p_colour, alpha=0.3)
+    plt.fill_between(x2_data, min_scores_2, max_scores_2, facecolor=colour_alpha)
     plt.legend(loc="lower right")
     plt.show()
 
