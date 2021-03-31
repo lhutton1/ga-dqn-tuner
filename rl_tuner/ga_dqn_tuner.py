@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 import json
 from collections import Counter
+import enum
 
 import numpy as np
 import torch
@@ -23,6 +24,12 @@ from tvm.autotvm.env import GLOBAL_SCOPE
 
 from .dqn_model import DQNAgent
 
+# Debugging packages
+import matplotlib as mpl
+mpl.use('Agg')
+from matplotlib import pyplot as plt
+from tools.plots import DynamicPlot, DualDynamicPlot, DynamicScatterPlot
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger("autotvm")
@@ -34,7 +41,7 @@ class Transition:
     that contains data required for each interaction of the agent
     with the environment.
     """
-    def __init__(self, prev_state, state, action, gene, score=None, prediction=None):
+    def __init__(self, prev_state, state, action, gene, score=None):
         self.prev_state = prev_state
         self.state = state
         self.action = action
@@ -44,8 +51,18 @@ class Transition:
         self.input = None
         self.result = None
 
-        # Debugging
-        self.prediction = prediction
+
+class RewardFunction(enum.IntEnum):
+    """
+    Choose between 3 different reward functions.
+
+    R1 - calculate score based on normalised initial score.
+    R2 - calculate score based on best flops increase.
+    R3 - calculate score using somewhat of a combination of R1 and R2.
+    """
+    R1 = 0
+    R2 = 1
+    R3 = 2
 
 
 class GADQNTuner(Tuner):
@@ -64,12 +81,11 @@ class GADQNTuner(Tuner):
                  epsilon_decay=0.99,
                  agent_batch_size=32,
                  memory_capacity=200,
-                 debug=True):
+                 reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
         # Initialise debugging
-        if debug:
-            self.initialise_debugging(discount, memory_capacity)
+        self.initialise_debugging(discount, memory_capacity)
 
         # Search space info
         self.space = task.config_space
@@ -78,7 +94,7 @@ class GADQNTuner(Tuner):
         self.trial_pt = 0
 
         # GA Tuner
-        self.pop_size = min(16, len(self.space))
+        self.pop_size = min(64, len(self.space))
         self.elite_num = 3
         self.elite_population = []
         self.population = []
@@ -88,13 +104,16 @@ class GADQNTuner(Tuner):
         self.update_frequency = target_update_frequency
         self.train_frequency = train_frequency
         self.agent_batch_size = agent_batch_size
-        self.epsilon = (1.0, 0.05, epsilon_decay)
+        self.epsilon = (1.0, 0.1, epsilon_decay)
+        self.reward_function = reward_function
         self.mutation_agent, self.crossover_agent = self.create_rl_agents(discount, memory_capacity)
 
         # RL Training
-        self.mutation_prev_fitness = 0
-        self.crossover_prev_fitness = 0
+        self.prev_fitness = 0
         self.step_count = 0
+        self.mutation_step_count = 0
+        self.crossover_step_count = 0
+        self.initial_score = 0
 
     def create_rl_agents(self, discount, memory_capacity):
         """
@@ -124,26 +143,19 @@ class GADQNTuner(Tuner):
         """
         Start the tuner with debugging.
         """
-
-        # Lazy import debugging packages
-        import matplotlib as mpl
-        mpl.use('Agg')
-        from matplotlib import pyplot as plt
-        from tools.plots import DynamicPlot, DualDynamicPlot, DynamicScatterPlot
-        self.debug = True
-
         # Monitoring plots
         plt.ion()
-        self.loss_plot = DualDynamicPlot("DQN Mean Squared Error loss", "steps", "loss value", "mutation", "crossover")
-        self.avg_score_plot = DynamicPlot("Running average GFLOPS (avg. previous 100 measurements)", "steps",
-                                          "GFLOPS")
+        self.loss_plot = DualDynamicPlot("DQN Mean Squared Error loss",
+                                         "steps", "loss value", "mutation", "crossover")
+        self.avg_score_plot = DynamicPlot("Running average GFLOPS (avg. previous 100 measurements)",
+                                          "steps", "GFLOPS")
         self.action_plot_mutate = DynamicScatterPlot("Mutation action selection", "steps",
                                                      "knob mutation index (-1 is no mutation)")
-        self.action_plot_crossover = DynamicScatterPlot("Crossover action selection", "steps", "knob crossover index")
+        self.action_plot_crossover = DynamicScatterPlot("Crossover action selection",
+                                                        "steps", "knob crossover index")
         self.best_score_plot = DynamicPlot("Best GFLOPS", "steps", "GFLOPS")
-        self.reward_plot = DualDynamicPlot("Reward received", "steps", "DQN reward received", "mutation", "crossover")
-        self.prediction_plot = DynamicPlot("Prediction error", "steps",
-                                           "absolute difference between prediction and actual result")
+        self.reward_plot = DualDynamicPlot("Reward received", "steps", "DQN reward received",
+                                           "mutation", "crossover")
 
         # Additional tracking
         self.memory_capacity = memory_capacity
@@ -158,6 +170,12 @@ class GADQNTuner(Tuner):
         #logger.addHandler(ch)
         #logger.setLevel(logging.DEBUG)
 
+    def has_next(self):
+        """
+        Return true to continue tuning, false if not.
+        """
+        return len(self.visited) < len(self.space)
+
     def reserve_elites(self):
         """
         Swap elite genes with elite genes from previous population.
@@ -168,169 +186,237 @@ class GADQNTuner(Tuner):
         for idx in elite_indexes:
             self.elite_population.append(self.population[idx])
 
-    def normalise_state(self, state):
+    def normalise_state(self, state, pad=False):
         """
         Normalise a state to within 0-1 range. This improves training as it
-        removes bias of larger values.
+        removes bias from larger values.
         """
-        return np.array(state) / np.array(self.dims)
+        if not pad and len(state) == 8:
+            return np.divide(state, self.dims)
+        if len(state) == 8:
+            normalised = np.divide(state, self.dims)
+            return np.pad(normalised, (0, len(state)), 'constant', constant_values=0)
+        dims = self.dims + self.dims
+        return np.divide(state, dims)
 
-    def rl_mutate(self):
+    def calculate_reward(self, score):
+        """
+        Calculate reward based on reward function chosen.
+        """
+        scale = 1e9
+        reward_multiplier = 3  # multiplier used for R3
+
+        if self.reward_function == RewardFunction.R1:
+            return (self.initial_score - score) / scale
+        elif self.reward_function == RewardFunction.R2:
+            reward = score if score >= self.best_flops else 0
+            return reward / scale
+        elif self.reward_function == RewardFunction.R3:
+            if score >= self.best_flops:
+                reward = (score * reward_multiplier)
+            elif self.prev_fitness < score <= self.best_flops:
+                reward = score
+            elif self.prev_fitness == score:
+                reward = 0
+            else:
+                reward = (score * -1)
+
+            return reward / scale
+
+    def rl_mutate(self, transitions):
         """
         Mutate genes using DQN to suggest which knob to randomly mutate.
-
-        DISCLAIMER: This section of code uses the mutation algorithm from GATuner
-                    as a base. It has been extended with RL action selection and
-                    debugging.
+        Mutations happen inplace on the "transitions" that are input.
         """
-        for i, transition in enumerate(self.population):
+        for i, transition in enumerate(transitions):
             gene = transition.gene
             next_gene = gene.copy()
 
             if len(self.visited) < len(self.space):
-                action, prediction = self.mutation_agent.get_action(gene)
-                # Action value of 0 means no mutation occurs
+                action = self.mutation_agent.get_action(gene)
+                # An action value of 0 means no mutation occurs
                 if action != 0:
                     next_gene[action-1] = np.random.randint(self.dims[action-1])
 
-                    # If next gene already visited, fallback to random mutation.
-                    while knob2point(next_gene, self.dims) in self.visited:
-                        prediction = None
-                        action = np.random.randint(len(self.dims))
-                        next_gene[action] = np.random.randint(
-                            self.dims[action]
-                        )
+                # If next gene already visited, fallback to random mutation.
+                while knob2point(next_gene, self.dims) in self.visited:
+                    action = np.random.randint(len(self.dims))
+                    next_gene[action] = np.random.randint(
+                        self.dims[action])
 
-                self.population[i] = Transition(self.normalise_state(gene),
-                                                self.normalise_state(next_gene),
-                                                action, next_gene, prediction=prediction)
+                transitions[i] = Transition(self.normalise_state(gene),
+                                            self.normalise_state(next_gene),
+                                            action, next_gene)
                 self.visited.add(knob2point(gene, self.dims))
             else:
                 break
 
         # Debugging
-        if self.debug:
-            occurrences = Counter(t.action for t in self.population)
-            for action, occurrence in occurrences.items():
-                marker_size = occurrence * 2
-                self.action_plot_mutate.update_plot(self.step_count, action-1, marker_size)
+        occurrences = Counter(t.action for t in transitions)
+        for action, occurrence in occurrences.items():
+            marker_size = occurrence * 2
+            self.action_plot_mutate.update_plot(self.mutation_step_count, action-1, marker_size)
 
-    def rl_crossover(self):
+    def rl_crossover(self, probabilities, indices, batch_size):
         """
         Crossover genes using DQN to suggest the crossover point.
-
-        DISCLAIMER: This section of code uses the mutation algorithm from GATuner
-                    as a base. It has been extended with RL action selection and
-                    debugging.
         """
-        scores = np.array([t.score for t in self.population])
-        indices = np.arange(len(self.population))
-        scores += 1e-8
-        scores /= np.max(scores)
-        probabilities = scores / np.sum(scores)
         tmp_genes = []
 
-        for i in range(self.pop_size):
+        for i in range(batch_size):
             p1, p2 = np.random.choice(indices, size=2, replace=False, p=probabilities)
             p1, p2 = self.population[p1].gene, self.population[p2].gene
-            # TODO the agent should be aware of both the genes involved in cross over. Could the difference be taken?
-            #state = p1 + p2
-            #point = self.crossover_agent.select_action(state)
-            point = np.random.randint(len(self.dims))
+            state = p1 + p2
+            point = self.crossover_agent.get_action(state)
+            #point = np.random.randint(len(self.dims))
             next_gene = p1[:point] + p2[point:]
-            #next_state = next_gene + [0] * len(next_gene)
-            tmp_genes.append(Transition(None, None, point, next_gene))
-
-        self.population = tmp_genes
+            tmp_genes.append(Transition(self.normalise_state(state),
+                                        self.normalise_state(next_gene, pad=True),
+                                        point,
+                                        next_gene))
 
         # Debugging
-        if self.debug:
-            occurrences = Counter(t.action for t in self.population)
-            for action, occurrence in occurrences.items():
-                marker_size = occurrence * 2
-                self.action_plot_crossover.update_plot(self.step_count, action, marker_size)
+        occurrences = Counter(t.action for t in tmp_genes)
+        for action, occurrence in occurrences.items():
+            marker_size = occurrence * 2
+            self.action_plot_crossover.update_plot(self.crossover_step_count, action, marker_size)
 
-    def update(self, agent):
+        return tmp_genes
+
+    def mutate_update(self, n_parallel, measure_batch, callbacks):
         """
-        Update DQN agent after receiving results.
+        Perform RL mutation on the population.
         """
-        scale = 1e9
-        reward_multiplier = 5
-        is_crossover = agent.name == "crossover"
-        prev_fitness = self.crossover_prev_fitness if is_crossover else self.mutation_prev_fitness
+        if self.step_count >= self.pop_size:
+
+            # Batch population by train frequency
+            for i in range((self.pop_size + (self.train_frequency - 1)) // self.train_frequency):
+                batch_size = min(self.train_frequency, self.pop_size - (i * self.train_frequency))
+                transitions_offset = (i * self.train_frequency) - 1
+
+                transitions = self.population[transitions_offset:transitions_offset + batch_size]
+                self.rl_mutate(transitions)
+                self.measure_configs(transitions, n_parallel, measure_batch, callbacks)
+
+                for j, transition in enumerate(transitions):
+                    # Calculate the reward received by the agent.
+                    reward = self.calculate_reward(transition.score)
+
+                    self.mutation_agent.memory.store_experience([transition.prev_state,
+                                                                 transition.action,
+                                                                 transition.state,
+                                                                 reward])
+                    self.population[transitions_offset + j] = transition
+
+                    if self.mutation_step_count > 0 and \
+                            (self.mutation_step_count + j) % self.update_frequency == 0:
+                        print("Increment mutation target...")
+                        self.mutation_agent.increment_target()
+                    steps = self.step_count - len(transitions) + j
+                    self.reward_plot.update_plot(steps, reward, False)
+
+                # Delay the learn start for mutate, as it comes after crossover.
+                self.mutation_step_count += batch_size
+                if self.mutation_step_count > self.learn_start:
+                    loss = self.mutation_agent.train(self.agent_batch_size)
+                    print("Mutation eps:", self.mutation_agent.reduce_epsilon())
+                    if loss is not None:
+                        self.loss_plot.update_plot(self.mutation_step_count, loss.item(), False)
+
+        self.prev_fitness = np.mean(self.scores[-self.pop_size:])
+
+    def crossover_update(self, n_parallel, measure_batch, callbacks):
+        """
+        Perform RL crossover on the population.
+        """
+        # Calculate crossover probabilities based on whole population
+        scores = np.array([t.score for t in self.population])
+        scores += 1e-8
+        scores /= np.max(scores)
+        indices = np.arange(len(self.population))
+        probabilities = scores / np.sum(scores)
 
         if self.step_count >= self.pop_size:
-            for i, transition in enumerate(self.population):
+            # Batch population by train frequency
+            for i in range((self.pop_size + (self.train_frequency - 1)) // self.train_frequency):
+                batch_size = min(self.train_frequency, self.pop_size - (i * self.train_frequency))
+                population_offset = (i * self.train_frequency) - 1
 
-                # Calculate the reward received by the agent.
-                score = transition.score
-                if score >= self.best_flops:
-                    reward = (score * reward_multiplier) / scale
-                elif prev_fitness < score <= self.best_flops:
-                    reward = score / scale
-                elif prev_fitness == score:
-                    reward = 0
-                else:
-                    reward = (score * -1) / scale
-                agent.memory.store_experience([transition.prev_state,
-                                               transition.action,
-                                               transition.state,
-                                               reward])
+                transitions = self.rl_crossover(probabilities, indices, batch_size)
+                self.measure_configs(transitions, n_parallel, measure_batch, callbacks)
 
-                if transition.prediction:
-                    self.prediction_plot.update_plot(self.step_count + i, abs(transition.prediction - reward))
+                for j, transition in enumerate(transitions):
+                    # Calculate the reward received by the agent.
+                    reward = self.calculate_reward(transition.score)
+
+                    self.crossover_agent.memory.store_experience([transition.prev_state,
+                                                                  transition.action,
+                                                                  transition.state,
+                                                                  reward])
+                    self.population[population_offset + j] = transition
+
+                    if self.crossover_step_count > 0 and \
+                            (self.crossover_step_count + j) % self.update_frequency == 0:
+                        print("Increment crossover target...")
+                        self.crossover_agent.increment_target()
+                    steps = self.step_count - len(transitions) + j
+                    self.reward_plot.update_plot(steps, reward, True)
 
                 # Train DQN
-                steps = self.step_count + i
-                if steps > self.learn_start and i % self.train_frequency == 0:
-                    loss = agent.train(self.agent_batch_size)
-                    agent.reduce_epsilon()
-                    if self.debug and loss is not None:
-                        self.loss_plot.update_plot(steps, loss.item(), is_crossover)
-                if steps % self.update_frequency == 0:
-                    agent.increment_target()
+                self.crossover_step_count += batch_size
+                if self.crossover_step_count > self.learn_start:
+                    loss = self.crossover_agent.train(self.agent_batch_size)
+                    print("Crossover eps:", self.crossover_agent.reduce_epsilon())
+                    if loss is not None:
+                        self.loss_plot.update_plot(self.crossover_step_count, loss.item(), True)
 
-                if self.debug:
-                    self.scores.append(score)
-                    if not is_crossover and steps >= 100:
-                        average_score = round(np.mean(self.scores[-100:]) / scale, 2)
-                        self.avg_score_plot.update_plot(steps, average_score)
-                    self.best_score_plot.update_plot(steps, round(np.max(self.best_flops) / scale, 2))
-                    self.reward_plot.update_plot(steps, reward, is_crossover)
+        self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
-        no_transitions = len(self.population)
-        if is_crossover:
-            self.crossover_prev_fitness = np.mean(self.scores[-no_transitions:])
-        else:
-            self.mutation_prev_fitness = np.mean(self.scores[-no_transitions:])
-
-    def has_next(self):
-        """
-        Return true to continue tuning, false if not.
-        """
-        return len(self.visited) < len(self.space)
-
-    def measure_configs(self, n_parallel, measure_batch):
+    def measure_configs(self, transitions, n_parallel, measure_batch, callbacks):
         """
         Measure results for current population.
         """
         # Iterate ceil(no.self.transitions / n_parallel) number of times
-        for i in range((len(self.population) + (n_parallel - 1)) // n_parallel):
+        for i in range((len(transitions) + (n_parallel - 1)) // n_parallel):
             configs = []
-            batch_size = min(n_parallel, len(self.population) - (i * n_parallel))
+            batch_size = min(n_parallel, len(transitions) - (i * n_parallel))
             transitions_offset = (i * n_parallel) - 1
+
+            # Get configs
             for j in range(transitions_offset, transitions_offset + batch_size):
-                gene = self.population[j].gene
+                gene = transitions[j].gene
                 configs.append(self.space.get(knob2point(gene, self.dims)))
+
+            # Measure batch
             inputs = [MeasureInput(self.task.target, self.task, config) for config in configs]
-            # TODO remove end time value. Custom results gives ([result], end time) rather than [result]
-            results = measure_batch(inputs)[0]
+            results, end_time = measure_batch(inputs)
+
+            # Unpack result
             for j in range(len(results)):
-                transition = self.population[transitions_offset + j]
+                self.step_count += 1
+                transition = transitions[transitions_offset + j]
                 input, result = inputs[j], results[j]
                 transition.input = inputs[j]
                 transition.result = results[j]
                 transition.score = input.task.flop / np.mean(result.costs) if result.error_no == 0 else 0.0
+                self.scores.append(transition.score)
+
+                # Update best
+                if transition.score > self.best_flops:
+                    self.best_flops = transition.score
+                    self.best_config = transition.input.config
+                    self.best_measure_pair = (transition.input, transition.result)
+                    self.best_iter = self.step_count
+
+                self.best_score_plot.update_plot(self.step_count, round(np.max(self.best_flops) / 1e9, 2))
+                if self.step_count >= 100:
+                    average_score = round(np.mean(self.scores[-100:]) / 1e9, 2)
+                    self.avg_score_plot.update_plot(self.step_count, average_score)
+
+        for callback in callbacks:
+            inputs = [t.input for t in transitions]
+            results = [t.result for t in transitions]
+            callback(self, inputs, results)
 
     def save_model(self, save_path, save_name):
         """
@@ -344,40 +430,35 @@ class GADQNTuner(Tuner):
         self.crossover_agent.save_models(abs_path_str + "/crossover_policy_net.model",
                                          abs_path_str + "/crossover_target_net.model")
 
-        if self.debug:
-            from matplotlib import pyplot as plt
+        self.loss_plot.save(abs_path_str, "loss")
+        self.avg_score_plot.save(abs_path_str, "avg_score")
+        self.best_score_plot.save(abs_path_str, "best_score")
+        self.action_plot_mutate.save(abs_path_str, "action_mutate")
+        self.action_plot_crossover.save(abs_path_str, "action_crossover")
+        self.reward_plot.save(abs_path_str, "reward")
 
-            self.loss_plot.save(abs_path_str, "loss")
-            self.avg_score_plot.save(abs_path_str, "avg_score")
-            self.best_score_plot.save(abs_path_str, "best_score")
-            self.action_plot_mutate.save(abs_path_str, "action_mutate")
-            self.action_plot_crossover.save(abs_path_str, "action_crossover")
-            self.reward_plot.save(abs_path_str, "reward")
-            self.prediction_plot.save(abs_path_str, "prediction_error")
+        params = {
+            "Learn Start": self.learn_start,
+            "Update Frequency": self.update_frequency,
+            "Discount": self.discount,
+            "Agent Batch Size": self.agent_batch_size,
+            "Epsilon": list(self.epsilon),
+            "Memory Capacity": self.memory_capacity,
+            "Dims": len(self.dims),
+            "Space Size": len(self.space),
+            "Best Score": self.best_flops,
+            "Best Config": self.best_config.to_json_dict()
+        }
+        with open(abs_path_str + "/params.json", "w") as f:
+            json.dump(params, f, indent=4, sort_keys=True)
 
-            params = {
-                "Learn Start": self.learn_start,
-                "Update Frequency": self.update_frequency,
-                "Discount": self.discount,
-                "Agent Batch Size": self.agent_batch_size,
-                "Epsilon": list(self.epsilon),
-                "Memory Capacity": self.memory_capacity,
-                "Dims": len(self.dims),
-                "Space Size": len(self.space),
-                "Best Score": self.best_flops,
-                "Best Config": self.best_config.to_json_dict()
-            }
-            with open(abs_path_str + "/params.json", "w") as f:
-                json.dump(params, f, indent=4, sort_keys=True)
-
-            # close plots
-            plt.close(self.loss_plot.figure)
-            plt.close(self.avg_score_plot.figure)
-            plt.close(self.best_score_plot.figure)
-            plt.close(self.action_plot_mutate.figure)
-            plt.close(self.action_plot_crossover.figure)
-            plt.close(self.reward_plot.figure)
-            plt.close(self.prediction_plot.figure)
+        # close plots
+        plt.close(self.loss_plot.figure)
+        plt.close(self.avg_score_plot.figure)
+        plt.close(self.best_score_plot.figure)
+        plt.close(self.action_plot_mutate.figure)
+        plt.close(self.action_plot_crossover.figure)
+        plt.close(self.reward_plot.figure)
 
     def tune(self, n_trial, measure_option, early_stopping=None, callbacks=(), si_prefix="G"):
         """
@@ -393,6 +474,7 @@ class GADQNTuner(Tuner):
         early_stopping = early_stopping or 1e9
         format_si_prefix(0, si_prefix)
         GLOBAL_SCOPE.in_tuning = True
+        do_crossover = True
 
         while self.step_count < n_trial:
             if not self.has_next():
@@ -407,35 +489,22 @@ class GADQNTuner(Tuner):
                     transition = Transition(None, None, None, gene)
                     self.population.append(transition)
                     self.visited.add(knob2point(gene, self.dims))
-                self.measure_configs(n_parallel, measure_batch)
+                self.measure_configs(self.population, n_parallel, measure_batch, callbacks)
+                self.initial_score = np.mean([p.score for p in self.population])
                 self.reserve_elites()
 
             # Apply GA-DQN tuning once initial population has been created.
             else:
-                self.population.extend(self.elite_population)
-                self.reserve_elites()
-                self.rl_crossover()
-                # self.measure_configs(n_parallel, measure_batch)
-                # self.update(self.crossover_agent)
-                self.rl_mutate()
-                self.measure_configs(n_parallel, measure_batch)
-                self.update(self.mutation_agent)
+                if do_crossover:
+                    self.population.extend(self.elite_population)
+                    self.reserve_elites()
+                    self.crossover_update(n_parallel, measure_batch, callbacks)
+                    do_crossover = False
+                else:
+                    self.mutate_update(n_parallel, measure_batch, callbacks)
+                    do_crossover = True
 
-            # Keep best config. DISCLAIMER most of the remaining code is from the Tuner class.
-            for k, transition in enumerate(self.population):
-                if transition.score > self.best_flops:
-                    self.best_flops = transition.score
-                    self.best_config = transition.input.config
-                    self.best_measure_pair = (transition.input, transition.result)
-                    self.best_iter = self.step_count + k
-
-            self.step_count += len(self.population)
             self.ttl = min(early_stopping + self.best_iter, n_trial) - self.step_count
-
-            for callback in callbacks:
-                inputs = [t.input for t in self.population]
-                results = [t.result for t in self.population]
-                callback(self, inputs, results)
 
             if self.step_count >= self.best_iter + early_stopping:
                 logger.debug("Early stopped. Best iter: %d.", self.best_iter)

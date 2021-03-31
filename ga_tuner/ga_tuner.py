@@ -79,6 +79,7 @@ class GATuner(Tuner):
         if self.debug:
             plt.ion()
             self.best_score_plot = DynamicPlot("Best score", "steps", "best score")
+            self.average_score_plot = DynamicPlot("Average score", "steps", "average score")
             self.action_plot = DynamicScatterPlot("Action selection", "steps", "action value")
 
     def next_batch(self, batch_size):
@@ -100,6 +101,7 @@ class GATuner(Tuner):
 
             if self.debug:
                 self.best_score_plot.update_plot(self.steps + i, round(self.best_flops / 1000000000, 2))
+                self.average_score_plot.update_plot(self.steps + i, round(np.mean(self.scores[-100:]) / 1e9, 2))
 
         self.steps += len(results)
 
@@ -166,7 +168,10 @@ class GATuner(Tuner):
             abs_path_str = str(abs_path)
             self.best_score_plot.save(abs_path_str, "best_score")
             self.action_plot.save(abs_path_str, "action")
+            self.average_score_plot.save(abs_path_str, "avg_score")
             plt.close(self.best_score_plot.figure)
+            plt.close(self.action_plot.figure)
+            plt.close(self.average_score_plot.figure)
 
     def has_next(self):
         return len(self.visited) - (len(self.genes) - self.trial_pt) < len(self.space)

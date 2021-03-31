@@ -81,7 +81,7 @@ class DQN(nn.Module):
     A simple DQN model.
 
     Architecture:
-        >> Input layer: linear + ReLu
+        >> Input layer
         >> Hidden layer 1: linear + ReLu
         >> Hidden layer 2: linear + ReLu
         >> Output layer: linear
@@ -174,6 +174,7 @@ class DQNAgent:
         """
         new_eps = self.eps_max * self.eps_decay
         self.eps_max = max(self.eps_min, new_eps)
+        return self.eps_max
 
     def get_action(self, state):
         """
@@ -182,7 +183,7 @@ class DQNAgent:
         """
         if random.random() <= self.eps_max:
             idx = random.randrange(self.action_size)
-            return idx, None
+            return idx
 
         if not torch.is_tensor(state):
             state = torch.tensor([state], dtype=torch.float32).to(self.device)
@@ -191,8 +192,7 @@ class DQNAgent:
             action = self.policy.forward(state)
 
         max_idx = torch.argmax(action).item()
-        max = torch.max(action).item()
-        return max_idx, max
+        return max_idx
 
     def train(self, batch_size):
         """
