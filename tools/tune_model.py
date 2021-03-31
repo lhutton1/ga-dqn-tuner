@@ -12,7 +12,7 @@ from rl_tuner.ga_dqn_tuner import GADQNTuner
 from .get_model import get_model
 
 
-def tune_model(mod, params, tune_settings, target):
+def tune_model(mod, params, tune_settings, target, model_name):
     """
     Tune a model for a specified number of trials along with other tune settings.
     Tune settings are specified using a json configuration, as per the TVM tools readme.
@@ -22,7 +22,7 @@ def tune_model(mod, params, tune_settings, target):
     save_path = tune_settings["save_path"]
     save_name = tune_settings["save_name"]
     repeat = tune_settings["repeat"]
-    debug = True if tune_settings.get("debug_gadqn") else False
+    debug = tune_settings.get("debug_gadqn") or False
     trials = tune_settings["trials"]
     tuner = tune_settings["tuner"]
     target = tvm.target.Target(target)
@@ -57,7 +57,7 @@ def tune_model(mod, params, tune_settings, target):
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
         elif tuner == "ga-dqn":
-            tuner_obj = GADQNTuner(tsk, debug=debug)
+            tuner_obj = GADQNTuner(tsk)
         else:
             raise ValueError("invalid tuner: %s " % tuner)
 
@@ -77,7 +77,9 @@ def tune_model(mod, params, tune_settings, target):
 
         # Save debug info for rl tuner only
         if tuner == "ga-dqn" and debug:
-            tuner_obj.save_model(save_path, save_name + "_layer=" + str(i))
+            tuner_obj.save_model(save_path, save_name + f"_model={model_name}_layer={i}")
+
+        del tuner_obj
 
 
 def tune_models(data):
@@ -91,4 +93,4 @@ def tune_models(data):
         trace, input_shapes = get_model(model['name'], model['type'])
         mod, params = relay.frontend.from_pytorch(trace, input_shapes)
         print(f"Tuning model {model['name']}, using strategy {tune_settings['tuner']}")
-        tune_model(mod, params, tune_settings, target_string)
+        tune_model(mod, params, tune_settings, target_string, model['name'])
