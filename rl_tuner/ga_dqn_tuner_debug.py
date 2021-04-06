@@ -1,6 +1,9 @@
 """
 Tuner with genetic algorithm, using reinforcement learning for crossover and mutation.
 
+Additional debugging is included which can be used to track the progress of the
+tuner.
+
 DISCLAIMER: Some of the code below is from the GATuner included in the standard TVM package.
             Comments have been added in order to identify where these sections of code have
             been used, although other sections may have some similarities when compared to
@@ -12,6 +15,7 @@ from pathlib import Path
 import json
 from collections import Counter
 import enum
+import sys
 
 import numpy as np
 import torch
@@ -24,8 +28,15 @@ from tvm.autotvm.env import GLOBAL_SCOPE
 
 from .dqn_model import DQNAgent
 
+# Debugging packages
+import matplotlib as mpl
+mpl.use('Agg')
+from matplotlib import pyplot as plt
+from tools.plots import DynamicPlot, DualDynamicPlot, DynamicScatterPlot
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger("autotvm")
 
 
 class Transition:
@@ -76,6 +87,9 @@ class GADQNTuner(Tuner):
                  memory_capacity=200,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
+
+        # Initialise debugging
+        self.initialise_debugging(discount, memory_capacity)
 
         # Search space info
         self.space = task.config_space
@@ -128,6 +142,37 @@ class GADQNTuner(Tuner):
                                    eps=self.epsilon,
                                    memory_capacity=memory_capacity)
         return mutation_agent, crossover_agent
+
+    def initialise_debugging(self, discount, memory_capacity):
+        """
+        Start the tuner with debugging.
+        """
+        # Monitoring plots
+        plt.ion()
+        self.loss_plot = DualDynamicPlot("DQN Mean Squared Error loss",
+                                         "steps", "loss value", "mutation", "crossover")
+        self.avg_score_plot = DynamicPlot("Running average GFLOPS (avg. previous 100 measurements)",
+                                          "steps", "GFLOPS")
+        self.action_plot_mutate = DynamicScatterPlot("Mutation action selection", "steps",
+                                                     "knob mutation index (-1 is no mutation)")
+        self.action_plot_crossover = DynamicScatterPlot("Crossover action selection",
+                                                        "steps", "knob crossover index")
+        self.best_score_plot = DynamicPlot("Best GFLOPS", "steps", "GFLOPS")
+        self.reward_plot = DualDynamicPlot("Reward received", "steps", "DQN reward received",
+                                           "mutation", "crossover")
+
+        # Additional tracking
+        self.memory_capacity = memory_capacity
+        self.discount = discount
+        self.scores = []
+
+        # Logging
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(logging.DEBUG)
+        formatter = logging.Formatter('%(name)s %(levelname)s %(message)s')
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+        logger.setLevel(logging.DEBUG)
 
     def has_next(self):
         """
@@ -210,6 +255,12 @@ class GADQNTuner(Tuner):
             else:
                 break
 
+        # Debugging
+        occurrences = Counter(t.action for t in transitions)
+        for action, occurrence in occurrences.items():
+            marker_size = occurrence * 2
+            self.action_plot_mutate.update_plot(self.mutation_step_count, action-1, marker_size)
+
     def rl_crossover(self, probabilities, indices, batch_size):
         """
         Crossover genes using DQN to suggest the crossover point.
@@ -226,6 +277,12 @@ class GADQNTuner(Tuner):
                                         self.normalise_state(next_gene, pad=True),
                                         point,
                                         next_gene))
+
+        # Debugging
+        occurrences = Counter(t.action for t in tmp_genes)
+        for action, occurrence in occurrences.items():
+            marker_size = occurrence * 2
+            self.action_plot_crossover.update_plot(self.crossover_step_count, action, marker_size)
 
         return tmp_genes
 
@@ -257,11 +314,15 @@ class GADQNTuner(Tuner):
                     if self.mutation_step_count > 0 and \
                             (self.mutation_step_count + j) % self.update_frequency == 0:
                         self.mutation_agent.increment_target()
+                    steps = self.step_count - len(transitions) + j
+                    self.reward_plot.update_plot(steps, reward, False)
 
                 # Delay the learn start for mutate, as it comes after crossover.
                 self.mutation_step_count += batch_size
                 if self.mutation_step_count > self.learn_start:
-                    self.mutation_agent.train(self.agent_batch_size)
+                    loss = self.mutation_agent.train(self.agent_batch_size)
+                    if loss is not None:
+                        self.loss_plot.update_plot(self.mutation_step_count, loss.item(), False)
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -298,11 +359,15 @@ class GADQNTuner(Tuner):
                     if self.crossover_step_count > 0 and \
                             (self.crossover_step_count + j) % self.update_frequency == 0:
                         self.crossover_agent.increment_target()
+                    steps = self.step_count - len(transitions) + j
+                    self.reward_plot.update_plot(steps, reward, True)
 
                 # Train DQN
                 self.crossover_step_count += batch_size
                 if self.crossover_step_count > self.learn_start:
-                    self.crossover_agent.train(self.agent_batch_size)
+                    loss = self.crossover_agent.train(self.agent_batch_size)
+                    if loss is not None:
+                        self.loss_plot.update_plot(self.crossover_step_count, loss.item(), True)
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -342,6 +407,11 @@ class GADQNTuner(Tuner):
                     self.best_measure_pair = (transition.input, transition.result)
                     self.best_iter = self.step_count
 
+                self.best_score_plot.update_plot(self.step_count, round(np.max(self.best_flops) / 1e9, 2))
+                if self.step_count >= 100:
+                    average_score = round(np.mean(self.scores[-100:]) / 1e9, 2)
+                    self.avg_score_plot.update_plot(self.step_count, average_score)
+
         for callback in callbacks:
             inputs = [t.input for t in transitions]
             results = [t.result for t in transitions]
@@ -358,6 +428,36 @@ class GADQNTuner(Tuner):
                                         abs_path_str + "/mutate_target_net.model")
         self.crossover_agent.save_models(abs_path_str + "/crossover_policy_net.model",
                                          abs_path_str + "/crossover_target_net.model")
+
+        self.loss_plot.save(abs_path_str, "loss")
+        self.avg_score_plot.save(abs_path_str, "avg_score")
+        self.best_score_plot.save(abs_path_str, "best_score")
+        self.action_plot_mutate.save(abs_path_str, "action_mutate")
+        self.action_plot_crossover.save(abs_path_str, "action_crossover")
+        self.reward_plot.save(abs_path_str, "reward")
+
+        params = {
+            "Learn Start": self.learn_start,
+            "Update Frequency": self.update_frequency,
+            "Discount": self.discount,
+            "Agent Batch Size": self.agent_batch_size,
+            "Epsilon": list(self.epsilon),
+            "Memory Capacity": self.memory_capacity,
+            "Dims": len(self.dims),
+            "Space Size": len(self.space),
+            "Best Score": self.best_flops,
+            "Best Config": self.best_config.to_json_dict()
+        }
+        with open(abs_path_str + "/params.json", "w") as f:
+            json.dump(params, f, indent=4, sort_keys=True)
+
+        # close plots
+        plt.close(self.loss_plot.figure)
+        plt.close(self.avg_score_plot.figure)
+        plt.close(self.best_score_plot.figure)
+        plt.close(self.action_plot_mutate.figure)
+        plt.close(self.action_plot_crossover.figure)
+        plt.close(self.reward_plot.figure)
 
     def tune(self, n_trial, measure_option, early_stopping=None, callbacks=(), si_prefix="G"):
         """
@@ -406,6 +506,7 @@ class GADQNTuner(Tuner):
             self.ttl = min(early_stopping + self.best_iter, n_trial) - self.step_count
 
             if self.step_count >= self.best_iter + early_stopping:
+                logger.debug("Early stopped. Best iter: %d.", self.best_iter)
                 break
 
         GLOBAL_SCOPE.in_tuning = False

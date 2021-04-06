@@ -5,7 +5,7 @@ from tvm import relay
 from tvm.relay import testing
 from tvm import autotvm
 
-from rl_tuner.ga_dqn_tuner import GADQNTuner, RewardFunction
+from rl_tuner.ga_dqn_tuner_debug import GADQNTuner, RewardFunction
 from ga_tuner.ga_tuner import GATuner
 from .plots import *
 

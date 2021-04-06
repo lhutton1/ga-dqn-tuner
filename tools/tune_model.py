@@ -9,6 +9,7 @@ from tvm.autotvm.tuner import RandomTuner
 from tvm.autotvm.tuner import XGBTuner
 
 from rl_tuner.ga_dqn_tuner import GADQNTuner
+from rl_tuner.ga_dqn_tuner_debug import GADQNTuner as GADQNTunerDebug
 from .get_model import get_model
 
 
@@ -56,6 +57,8 @@ def tune_model(mod, params, tune_settings, target, model_name):
             tuner_obj = RandomTuner(tsk)
         elif tuner == "gridsearch":
             tuner_obj = GridSearchTuner(tsk)
+        elif tuner == "ga-dqn" and debug:
+            tuner_obj = GADQNTunerDebug(tsk)
         elif tuner == "ga-dqn":
             tuner_obj = GADQNTuner(tsk)
         else:
