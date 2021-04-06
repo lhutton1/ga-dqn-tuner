@@ -213,10 +213,6 @@ def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_dat
     """
     Compares different reward functions against a ga bassline.
     """
-    figure, axes = plt.subplots()
-    axes.set_autoscalex_on(True)
-    axes.set_autoscaley_on(True)
-
     figure.suptitle(title)
     axes.set_xlabel(x_label)
     axes.set_ylabel(y_label)
@@ -251,3 +247,106 @@ def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_dat
     plt.show()
 
     figure.savefig(save_path + "/" + save_name + ".png")
+
+def grouped_bar_plot(results, xlabel, ylabel, title):
+    """
+    A grouped bar plot for comparing different search strategies.
+    """
+    figure, axes = plt.subplots()
+    axes.set_autoscalex_on(True)
+    axes.set_autoscaley_on(True)
+
+    n_bars = len(results["strategies"])
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    total_width = 0.8
+    single_width = 1
+    bar_width = total_width / n_bars
+
+    bars = []
+
+    for i, strategy in enumerate(results["strategies"]):
+        x_offset = (i - n_bars / 2) * bar_width + bar_width / 2
+
+        for x, y in enumerate(strategy["data"]):
+            bar = axes.bar(x + x_offset, 
+                           y, 
+                           width=bar_width * single_width, 
+                           color=colors[i % len(colors)])
+
+        bars.append(bar[0])
+
+    axes.set_title(title)
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xticks(np.arange(len(results["ticks"])))
+    axes.set_xticklabels(results["ticks"])
+    axes.legend(bars, [s["name"] for s in results["strategies"]])
+
+
+
+"""
+A series of predefined results used in the report.
+"""
+
+SEARCH_STRATEGY_TUNING_RESULTS = {
+    "ticks":    ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
+    "strategies": [
+        {
+            "name": "Random",
+            "data": [205.36633, 145.87233, 445.783, 23.747, 92.92367]
+        },
+        {
+            "name": "GA",
+            "data": [289.41617, 163.81917, 548.72333, 45.44617, 145.0955]
+        },
+        {
+            "name": "XGB",
+            "data": [277.43417, 204.20383, 0.0, 41.42767, 85.39717]
+        }
+    ]
+}
+
+SEARCH_STRATEGY_BENCHMARK_RESULTS = {
+    "ticks":    ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
+    "strategies": [
+        {
+            "name": "Random",
+            "data": [0.00282, 0.00133, 0.00857, 0.00778, 0.0039]
+        },
+        {
+            "name": "GA",
+            "data": [0.00109, 0.00137, 0.0072, 0.00536, 0.00318]
+        },
+        {
+            "name": "XGB",
+            "data": [0.00095, 0.0013, 0, 0.00763, 0.00302]
+        },
+        {
+            "name": "PyTorch",
+            "data": [0.00564, 0.00237, 0.01193, 0.00811, 0.00159]
+        }
+    ]
+}
+
+
+def get_search_strategy_tuning_results():
+    """
+    Quick helper function to get search strategy tuning results.
+    """
+    grouped_bar_plot(SEARCH_STRATEGY_TUNING_RESULTS, 
+                     "Workload", 
+                     "Time (mins) - Lower is better", 
+                     "Tuning time of different search strategies on different workloads.")
+    plt.show()
+
+
+def get_search_strategy_benchmark_results():
+    """
+    Quick helper function to get search strategy benchmark results.
+    """
+    grouped_bar_plot(SEARCH_STRATEGY_BENCHMARK_RESULTS, 
+                     "Workload", 
+                     "Time (seconds) - Lower is better", 
+                     "Execution time of different workloads after being tuned.")
+    plt.show()
