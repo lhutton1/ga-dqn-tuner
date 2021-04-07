@@ -105,6 +105,7 @@ class GADQNTuner(Tuner):
         self.mutation_step_count = 0
         self.crossover_step_count = 0
         self.initial_score = 0
+        self.scores = []
 
     def create_rl_agents(self, discount, memory_capacity):
         """
