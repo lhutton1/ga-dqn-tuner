@@ -69,12 +69,12 @@ class GADQNTuner(Tuner):
     def __init__(self,
                  task,
                  learn_start=100,
-                 target_update_frequency=50,
-                 train_frequency=16,
+                 target_update_frequency=200,
+                 train_frequency=4,
                  discount=0.99,
                  epsilon_decay=0.99,
                  agent_batch_size=32,
-                 memory_capacity=200,
+                 memory_capacity=2000,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
