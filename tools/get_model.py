@@ -122,6 +122,36 @@ def load_simple_transformer(model_name):
     return model, [src, tgt]
 
 
+def load_single_operators(operator_name):
+    """
+    Single operators.
+    """
+    if operator_name == "matmul1":
+        def compute(x, y):
+            return torch.matmul(x, y)
+        inp = torch.rand((100, 30, 40))
+        inp2 = torch.rand((40, 50))
+        return compute, [inp, inp2]
+    elif operator_name == "matmul2":
+        def compute(x, y):
+            return torch.matmul(x, y)
+        inp = torch.rand((30, 30, 30))
+        inp2 = torch.rand((30, 30, 30))
+        return compute, [inp, inp2]
+    elif operator_name == "convolution1":
+        model = torch.nn.Conv2d(144, 32, 1)
+        model = model.eval()
+        inp = torch.rand((1, 144, 28, 28))
+        return model, [inp]
+    elif operator_name == "convolution2":
+        model = torch.nn.Conv2d(64, 96, 1, bias=False)
+        model = model.eval()
+        inp = torch.rand((1, 64, 35, 35))
+        return model, [inp]
+    else:
+        raise ValueError(f"Operator name {operator_name} not recognised.")
+
+
 def get_model(model_name, type):
     """
     Get a PyTorch model by type and name. Returns PyTorch trace and input shape dict.
@@ -130,7 +160,8 @@ def get_model(model_name, type):
     MODEL_MAP = {"torchvision":       (["*"], load_torchvision),
                  "torchtransformers": (["bert", "transformer_xl"], load_torchtransformers),
                  "github":            (["deepspeech"], load_deepspeech),
-                 "custom":            (["simple_transformer"], load_simple_transformer)}
+                 "custom":            (["simple_transformer"], load_simple_transformer),
+                 "op":                (["matmul1", "matmul2", "convolution1", "convolution2"], load_single_operators)}
 
     if type not in MODEL_MAP:
         raise ValueError(f'{type} is not supported. Unknown type name.')

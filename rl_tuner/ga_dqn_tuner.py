@@ -26,6 +26,7 @@ from .dqn_model import DQNAgent
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+logger = logging.getLogger("autotvm")
 
 
 class Transition:
@@ -150,9 +151,9 @@ class GADQNTuner(Tuner):
         Normalise a state to within 0-1 range. This improves training as it
         removes bias from larger values.
         """
-        if not pad and len(state) == 8:
+        if not pad and len(state) == len(self.dims):
             return np.divide(state, self.dims)
-        if len(state) == 8:
+        if len(state) == len(self.dims):
             normalised = np.divide(state, self.dims)
             return np.pad(normalised, (0, len(state)), 'constant', constant_values=0)
         dims = self.dims + self.dims

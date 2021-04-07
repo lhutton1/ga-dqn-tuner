@@ -166,14 +166,6 @@ class GADQNTuner(Tuner):
         self.discount = discount
         self.scores = []
 
-        # Logging
-        ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(name)s %(levelname)s %(message)s')
-        ch.setFormatter(formatter)
-        logger.addHandler(ch)
-        logger.setLevel(logging.DEBUG)
-
     def has_next(self):
         """
         Return true to continue tuning, false if not.
@@ -195,9 +187,9 @@ class GADQNTuner(Tuner):
         Normalise a state to within 0-1 range. This improves training as it
         removes bias from larger values.
         """
-        if not pad and len(state) == 8:
+        if not pad and len(state) == len(self.dims):
             return np.divide(state, self.dims)
-        if len(state) == 8:
+        if len(state) == len(self.dims):
             normalised = np.divide(state, self.dims)
             return np.pad(normalised, (0, len(state)), 'constant', constant_values=0)
         dims = self.dims + self.dims
