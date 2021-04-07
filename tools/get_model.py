@@ -144,9 +144,9 @@ def load_single_operators(operator_name):
         inp = torch.rand((1, 144, 28, 28))
         return model, [inp]
     elif operator_name == "convolution2":
-        model = torch.nn.Conv2d(64, 96, 1, bias=False)
+        model = torch.nn.Conv2d(16, 33, 3, stride=2)
         model = model.eval()
-        inp = torch.rand((1, 64, 35, 35))
+        inp = torch.rand((20, 16, 50, 100))
         return model, [inp]
     else:
         raise ValueError(f"Operator name {operator_name} not recognised.")
