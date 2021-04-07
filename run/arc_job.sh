@@ -19,7 +19,7 @@ PROJECT_DIR="${NO_BACKUP_DIR}/rl-tuner"
 TVM_IMG="${PROJECT_DIR}/rl-tuner.simg"
 TMP_DIR="${NO_BACKUP_DIR}/tmp"
 
-SCRIPT_TO_RUN="${PROJECT_DIR}/tools/driver.py"
+SCRIPT_TO_RUN="${PROJECT_DIR}/driver.py"
 METHOD="tune"
 CONFIG=`cat <<-EOF
 {
