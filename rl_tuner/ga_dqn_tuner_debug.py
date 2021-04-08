@@ -84,12 +84,11 @@ class GADQNTuner(Tuner):
                  discount=0.99,
                  epsilon_decay=0.99,
                  agent_batch_size=32,
-                 memory_capacity=2000,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
         # Initialise debugging
-        self.initialise_debugging(discount, memory_capacity)
+        self.initialise_debugging(discount)
 
         # Search space info
         self.space = task.config_space
@@ -110,6 +109,7 @@ class GADQNTuner(Tuner):
         self.agent_batch_size = agent_batch_size
         self.epsilon = (1.0, 0.1, epsilon_decay)
         self.reward_function = reward_function
+        memory_capacity = self.trials / 2
         self.mutation_agent, self.crossover_agent = self.create_rl_agents(discount, memory_capacity)
 
         # RL Training
@@ -143,7 +143,7 @@ class GADQNTuner(Tuner):
                                    memory_capacity=memory_capacity)
         return mutation_agent, crossover_agent
 
-    def initialise_debugging(self, discount, memory_capacity):
+    def initialise_debugging(self, discount):
         """
         Start the tuner with debugging.
         """
@@ -162,7 +162,6 @@ class GADQNTuner(Tuner):
                                            "mutation", "crossover")
 
         # Additional tracking
-        self.memory_capacity = memory_capacity
         self.discount = discount
         self.scores = []
 
@@ -434,7 +433,6 @@ class GADQNTuner(Tuner):
             "Discount": self.discount,
             "Agent Batch Size": self.agent_batch_size,
             "Epsilon": list(self.epsilon),
-            "Memory Capacity": self.memory_capacity,
             "Dims": len(self.dims),
             "Space Size": len(self.space),
             "Best Score": self.best_flops,

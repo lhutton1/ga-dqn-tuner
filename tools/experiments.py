@@ -84,7 +84,6 @@ def _test_convolution_with_dqnga(save_path,
                                  n_trial,
                                  early_stopping,
                                  learn_start,
-                                 memory_capacity,
                                  update_frequency,
                                  train_frequency,
                                  discount,
@@ -95,8 +94,8 @@ def _test_convolution_with_dqnga(save_path,
     """
     print(f"Running experiment with settings: n trial: {n_trial}, "
           f"early stopping: {early_stopping}, learn start: {learn_start}, "
-          f"memory capacity: {memory_capacity}, update frequency: {update_frequency}, "
-          f"discount: {discount}, ep decay: {epsilon_decay}")
+          f"update frequency: {update_frequency}, discount: {discount}, "
+          f"ep decay: {epsilon_decay}")
 
     mod, params = _get_relay_convolution()
     tasks = autotvm.task.extract_from_program(
@@ -110,7 +109,6 @@ def _test_convolution_with_dqnga(save_path,
     prefix = f"[Task 1/1]"
     tuner_obj = GADQNTuner(tasks[0],
                            learn_start=learn_start,
-                           memory_capacity=memory_capacity,
                            target_update_frequency=update_frequency,
                            train_frequency=train_frequency,
                            discount=discount,
@@ -161,56 +159,56 @@ def trial_parameters(save_path, save_name):
     ---------------
     trial_hyperparameters
     """
-
+    pass
+    # NEED TO IMPLEMENT RANDOM TUNER
     # defaults
-    n_trial = 2000
-    early_stopping = 1e9
-    learn_start = 100
-    memory_capacity = 300
-    update_frequency = 64
-    discount = 0.99
-    epsilon = (0.9, 0.05, 0.95)
-    pop_size = 16
-
-    name = save_name + "default"
-    _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                 learn_start, memory_capacity, update_frequency,
-                                 discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
-
-    # replay memory trails
-    for ls, mc in [(100, 200), (100, 500), (100, 100), (300, 500), (100, 1000), (300, 1000), (500, 1000)]:
-        name = save_name + "_learn_start=" + str(ls) + "_memory_capacity=" + str(mc)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     ls, mc, update_frequency,
-                                     discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
-
-    # update frequency trials
-    for uf in [1, 10, 25, 50, 100, 200]:
-        name = save_name + "_update_frequency=" + str(uf)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, uf,
-                                     discount, epsilon[0], epsilon[1], epsilon[2], pop_size)
-
-    # discount trials
-    for d in [0.99, 0.95, 0.85, 0.75]:
-        name = save_name + "_discount=" + str(d)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, update_frequency,
-                                     d, epsilon[0], epsilon[1], epsilon[2], pop_size)
-
-    # epsilon
-    for e_max, e_min, e_decay in [(1.0, 0.01, 0.99), (1.0, 0.01, 0.95), (0.9, 0.05, 0.99), (0.9, 0.05, 0.95)]:
-        name = save_name + "_emax=" + str(e_max) + "_emin=" + str(e_min) + "_edecay=" + str(e_decay)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, update_frequency,
-                                     discount, e_max, e_min, e_decay, pop_size)
-
-    # pop size for ga algorithm
-    for psize in [4, 8, 16, 32]:
-        name = save_name + "_emax=" + str(e_max) + "_emin=" + str(e_min) + "_edecay=" + str(e_decay)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, update_frequency,
-                                     discount, e_max, e_min, e_decay, psize)
+    # n_trial = 2000
+    # early_stopping = 1e9
+    # learn_start = 100
+    # memory_capacity = 300
+    # update_frequency = 64
+    # discount = 0.99
+    # epsilon = (0.9, 0.05, 0.95)
+    #
+    # name = save_name + "default"
+    # _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                              learn_start, memory_capacity, update_frequency,
+    #                              discount, epsilon[0], epsilon[1], epsilon[2])
+    #
+    # # replay memory trails
+    # for ls, mc in [(100, 200), (100, 500), (100, 100), (300, 500), (100, 1000), (300, 1000), (500, 1000)]:
+    #     name = save_name + "_learn_start=" + str(ls) + "_memory_capacity=" + str(mc)
+    #     _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                                  ls, mc, update_frequency,
+    #                                  discount, epsilon[0], epsilon[1], epsilon[2])
+    #
+    # # update frequency trials
+    # for uf in [1, 10, 25, 50, 100, 200]:
+    #     name = save_name + "_update_frequency=" + str(uf)
+    #     _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                                  learn_start, memory_capacity, uf,
+    #                                  discount, epsilon[0], epsilon[1], epsilon[2])
+    #
+    # # discount trials
+    # for d in [0.99, 0.95, 0.85, 0.75]:
+    #     name = save_name + "_discount=" + str(d)
+    #     _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                                  learn_start, memory_capacity, update_frequency,
+    #                                  d, epsilon[0], epsilon[1], epsilon[2])
+    #
+    # # epsilon
+    # for e_max, e_min, e_decay in [(1.0, 0.01, 0.99), (1.0, 0.01, 0.95), (0.9, 0.05, 0.99), (0.9, 0.05, 0.95)]:
+    #     name = save_name + "_emax=" + str(e_max) + "_emin=" + str(e_min) + "_edecay=" + str(e_decay)
+    #     _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                                  learn_start, memory_capacity, update_frequency,
+    #                                  discount, e_max, e_min, e_decay)
+    #
+    # # pop size for ga algorithm
+    # for psize in [4, 8, 16, 32]:
+    #     name = save_name + "_emax=" + str(e_max) + "_emin=" + str(e_min) + "_edecay=" + str(e_decay)
+    #     _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+    #                                  learn_start, memory_capacity, update_frequency,
+    #                                  discount, e_max, e_min, e_decay)
 
 
 def trial_ga(save_path, save_name, trials=10):
@@ -243,7 +241,6 @@ def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.
     n_trial = 2000
     early_stopping = 1e9
     learn_start = 100
-    memory_capacity = 2000
     update_frequency = 200
     train_frequency = 4
     discount = 0.99
@@ -252,7 +249,7 @@ def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.
     for i in range(trials):
         name = save_name + "_gadqn_trial=" + str(i)
         _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                     learn_start, memory_capacity, update_frequency, train_frequency,
+                                     learn_start, update_frequency, train_frequency,
                                      discount, epsilon_decay, reward_function)
 
 

@@ -74,7 +74,6 @@ class GADQNTuner(Tuner):
                  discount=0.99,
                  epsilon_decay=0.99,
                  agent_batch_size=32,
-                 memory_capacity=2000,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
@@ -97,6 +96,7 @@ class GADQNTuner(Tuner):
         self.agent_batch_size = agent_batch_size
         self.epsilon = (1.0, 0.1, epsilon_decay)
         self.reward_function = reward_function
+        memory_capacity = self.trials / 2
         self.mutation_agent, self.crossover_agent = self.create_rl_agents(discount, memory_capacity)
 
         # RL Training
