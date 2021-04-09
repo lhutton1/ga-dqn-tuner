@@ -74,7 +74,7 @@ def tune_model(mod, params, tune_settings, target, model_name):
             measure_option=measure_option,
             callbacks=[
                 autotvm.callback.progress_bar(trials, prefix=prefix),
-                autotvm.callback.log_to_file(abs_path_str + "/tuning_record.json"),
+                autotvm.callback.log_to_file(abs_path_str + f"/tuning_record_model={model_name}.json"),
             ],
         )
 
