@@ -16,6 +16,7 @@ import json
 from collections import Counter
 import enum
 import sys
+from math import ceil
 
 import numpy as np
 import torch
@@ -109,8 +110,8 @@ class GADQNTuner(Tuner):
         self.agent_batch_size = agent_batch_size
         self.epsilon = (1.0, 0.1, epsilon_decay)
         self.reward_function = reward_function
-        memory_capacity = self.trials / 2
-        self.mutation_agent, self.crossover_agent = self.create_rl_agents(discount, memory_capacity)
+        self.discount = discount
+        self.mutation_agent, self.crossover_agent = None, None  # initialised when tuning begins
 
         # RL Training
         self.prev_fitness = 0
@@ -162,7 +163,6 @@ class GADQNTuner(Tuner):
                                            "mutation", "crossover")
 
         # Additional tracking
-        self.discount = discount
         self.scores = []
 
     def has_next(self):
@@ -312,6 +312,7 @@ class GADQNTuner(Tuner):
                 self.mutation_step_count += batch_size
                 if self.mutation_step_count > self.learn_start:
                     loss = self.mutation_agent.train(self.agent_batch_size)
+                    self.mutation_agent.reduce_epsilon()
                     if loss is not None:
                         self.loss_plot.update_plot(self.mutation_step_count, loss.item(), False)
 
@@ -357,6 +358,7 @@ class GADQNTuner(Tuner):
                 self.crossover_step_count += batch_size
                 if self.crossover_step_count > self.learn_start:
                     loss = self.crossover_agent.train(self.agent_batch_size)
+                    self.crossover_agent.reduce_epsilon()
                     if loss is not None:
                         self.loss_plot.update_plot(self.crossover_step_count, loss.item(), True)
 
@@ -366,8 +368,7 @@ class GADQNTuner(Tuner):
         """
         Measure results for current population.
         """
-        # Iterate ceil(no.self.transitions / n_parallel) number of times
-        for i in range((len(transitions) + (n_parallel - 1)) // n_parallel):
+        for i in range(ceil(len(transitions) / n_parallel)):
             configs = []
             batch_size = min(n_parallel, len(transitions) - (i * n_parallel))
             transitions_offset = (i * n_parallel) - 1
@@ -464,6 +465,9 @@ class GADQNTuner(Tuner):
         format_si_prefix(0, si_prefix)
         GLOBAL_SCOPE.in_tuning = True
         do_crossover = True
+
+        self.mutation_agent, self.crossover_agent = self.create_rl_agents(
+            self.discount, int(ceil(n_trial / 2)))
 
         while self.step_count < n_trial:
             if not self.has_next():

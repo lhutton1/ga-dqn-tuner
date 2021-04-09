@@ -96,8 +96,8 @@ class GADQNTuner(Tuner):
         self.agent_batch_size = agent_batch_size
         self.epsilon = (1.0, 0.1, epsilon_decay)
         self.reward_function = reward_function
-        memory_capacity = self.trials / 2
-        self.mutation_agent, self.crossover_agent = self.create_rl_agents(discount, memory_capacity)
+        self.discount = discount
+        self.mutation_agent, self.crossover_agent = None, None  # initialised when tuning begins
 
         # RL Training
         self.prev_fitness = 0
@@ -264,6 +264,8 @@ class GADQNTuner(Tuner):
                 self.mutation_step_count += batch_size
                 if self.mutation_step_count > self.learn_start:
                     self.mutation_agent.train(self.agent_batch_size)
+                    self.mutation_agent.reduce_epsilon()
+                    print("MUTATION", (self.mutation_agent.eps_max, self.mutation_agent.eps_min, self.mutation_agent.eps_decay))
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -305,6 +307,8 @@ class GADQNTuner(Tuner):
                 self.crossover_step_count += batch_size
                 if self.crossover_step_count > self.learn_start:
                     self.crossover_agent.train(self.agent_batch_size)
+                    self.crossover_agent.reduce_epsilon()
+                    print("CROSSOVER", (self.crossover_agent.eps_max, self.crossover_agent.eps_min, self.crossover_agent.eps_decay))
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -376,6 +380,9 @@ class GADQNTuner(Tuner):
         format_si_prefix(0, si_prefix)
         GLOBAL_SCOPE.in_tuning = True
         do_crossover = True
+
+        self.mutation_agent, self.crossover_agent = self.create_rl_agents(
+            self.discount, n_trial / 2)
 
         while self.step_count < n_trial:
             if not self.has_next():
