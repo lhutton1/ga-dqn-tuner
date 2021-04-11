@@ -129,8 +129,8 @@ class DQNAgent:
                  discount=0.99,
                  eps=(1.0, 0.01, 0.99),
                  memory_capacity=5000,
+                 hidden_sizes=(256, 128),
                  learning_rate=1e-3,
-                 hidden_size=(256, 128),
                  debug=False):
         """
         Create a DQN agent that learns actions to take based on previous experience.
@@ -149,11 +149,11 @@ class DQNAgent:
 
         self.policy = DQN(self.state_size,
                           self.action_size,
-                          hidden_size,
+                          hidden_sizes,
                           learning_rate).to(self.device)
         self.target = DQN(self.state_size,
                           self.action_size,
-                          hidden_size,
+                          hidden_sizes,
                           learning_rate).to(self.device)
 
         # no learning on the target network.

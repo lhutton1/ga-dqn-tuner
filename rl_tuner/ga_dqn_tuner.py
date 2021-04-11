@@ -74,6 +74,8 @@ class GADQNTuner(Tuner):
                  discount=0.99,
                  epsilon_decay=0.99,
                  agent_batch_size=32,
+                 hidden_sizes=(512, 128),
+                 learning_rate=5e-3,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
@@ -97,6 +99,8 @@ class GADQNTuner(Tuner):
         self.epsilon = (1.0, 0.1, epsilon_decay)
         self.reward_function = reward_function
         self.discount = discount
+        self.hidden_sizes = hidden_sizes
+        self.learning_rate = learning_rate
         self.mutation_agent, self.crossover_agent = None, None  # initialised when tuning begins
 
         # RL Training
@@ -107,7 +111,7 @@ class GADQNTuner(Tuner):
         self.initial_score = 0
         self.scores = []
 
-    def create_rl_agents(self, discount, memory_capacity):
+    def create_rl_agents(self, discount, memory_capacity, hidden_sizes, learning_rate):
         """
         Create DQN agents for both mutation and crossover.
         """
@@ -119,7 +123,9 @@ class GADQNTuner(Tuner):
                                   action_space_size,
                                   discount=discount,
                                   eps=self.epsilon,
-                                  memory_capacity=memory_capacity)
+                                  memory_capacity=memory_capacity,
+                                  hidden_sizes=hidden_sizes,
+                                  learning_rate=learning_rate)
         state_space_size = len(self.dims) * 2
         action_space_size = len(self.dims) - 1
         crossover_agent = DQNAgent("crossover",
@@ -128,7 +134,9 @@ class GADQNTuner(Tuner):
                                    action_space_size,
                                    discount=discount,
                                    eps=self.epsilon,
-                                   memory_capacity=memory_capacity)
+                                   memory_capacity=memory_capacity,
+                                   hidden_sizes=hidden_sizes,
+                                   learning_rate=learning_rate)
         return mutation_agent, crossover_agent
 
     def has_next(self):
@@ -265,7 +273,6 @@ class GADQNTuner(Tuner):
                 if self.mutation_step_count > self.learn_start:
                     self.mutation_agent.train(self.agent_batch_size)
                     self.mutation_agent.reduce_epsilon()
-                    print("MUTATION", (self.mutation_agent.eps_max, self.mutation_agent.eps_min, self.mutation_agent.eps_decay))
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -308,7 +315,6 @@ class GADQNTuner(Tuner):
                 if self.crossover_step_count > self.learn_start:
                     self.crossover_agent.train(self.agent_batch_size)
                     self.crossover_agent.reduce_epsilon()
-                    print("CROSSOVER", (self.crossover_agent.eps_max, self.crossover_agent.eps_min, self.crossover_agent.eps_decay))
 
         self.prev_fitness = np.mean(self.scores[-self.pop_size:])
 
@@ -382,7 +388,7 @@ class GADQNTuner(Tuner):
         do_crossover = True
 
         self.mutation_agent, self.crossover_agent = self.create_rl_agents(
-            self.discount, n_trial / 2)
+            self.discount, n_trial / 2, self.hidden_sizes, self.learning_rate)
 
         while self.step_count < n_trial:
             if not self.has_next():
