@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import json
 import os
 import time
@@ -91,14 +90,17 @@ def extract_profile_data(times):
     return header, stats
 
 
-def compile_model(mod, params, target_string, tuning_records=None):
+def compile_model(mod, params, target_string, tuning_records=None, model_name=""):
     """
     Compile TVM model. Apply tuning records if they exist.
     """
     target = tvm.target.Target(target_string)
     target_host = "llvm"
 
-    if tuning_records and os.path.exists(tuning_records):
+    if tuning_records:
+        model_str = "_model=" + model_name if model_name else ""
+        tuning_records += model_str
+        if os.path.exists(tuning_records) 
         print('applying tuning history...')
         with autotvm.apply_history_best(tuning_records):
             with tvm.transform.PassContext(opt_level=3):
@@ -204,7 +206,7 @@ def benchmark_models(data):
                 mod, params = relay.frontend.from_pytorch(trace, input_shapes)
 
                 print(f"Compiling TVM model {model['name']}")
-                graph, lib, params = compile_model(mod, params, target_string, tuning_records)
+                graph, lib, params = compile_model(mod, params, target_string, tuning_records, model['name'])
                 
                 print(f"Running TVM model {model['name']}")
                 run_model_tvm(graph, lib, params, run_settings, model['name'], tuning_records)
