@@ -140,7 +140,7 @@ class GADQNTuner(Tuner):
                                   hidden_sizes=hidden_sizes,
                                   learning_rate=learning_rate)
         state_space_size = len(self.dims) * 2
-        action_space_size = len(self.dims) - 1
+        action_space_size = len(self.dims) - 2
         crossover_agent = DQNAgent("crossover",
                                    device,
                                    state_space_size,
@@ -292,7 +292,7 @@ class GADQNTuner(Tuner):
         if self.step_count >= self.pop_size:
 
             # Batch population by train frequency
-            for i in range((self.pop_size + (self.train_frequency - 1)) // self.train_frequency):
+            for i in range(ceil(self.pop_size / self.train_frequency)):
                 batch_size = min(self.train_frequency, self.pop_size - (i * self.train_frequency))
                 transitions_offset = (i * self.train_frequency) - 1
 
@@ -339,7 +339,7 @@ class GADQNTuner(Tuner):
 
         if self.step_count >= self.pop_size:
             # Batch population by train frequency
-            for i in range((self.pop_size + (self.train_frequency - 1)) // self.train_frequency):
+            for i in range(ceil(self.pop_size / self.train_frequency)):
                 batch_size = min(self.train_frequency, self.pop_size - (i * self.train_frequency))
                 population_offset = (i * self.train_frequency) - 1
 
