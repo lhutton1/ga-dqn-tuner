@@ -19,15 +19,15 @@ import sys
 from math import ceil
 
 import numpy as np
-import torch
+# import torch
 
-from tvm.autotvm.tuner import Tuner
-from tvm.autotvm.tuner.model_based_tuner import knob2point, point2knob
-from tvm.autotvm.measure import MeasureInput, create_measure_batch
-from tvm.autotvm.util import format_si_prefix
-from tvm.autotvm.env import GLOBAL_SCOPE
+# from tvm.autotvm.tuner import Tuner
+# from tvm.autotvm.tuner.model_based_tuner import knob2point, point2knob
+# from tvm.autotvm.measure import MeasureInput, create_measure_batch
+# from tvm.autotvm.util import format_si_prefix
+# from tvm.autotvm.env import GLOBAL_SCOPE
 
-from .dqn_model import DQNAgent
+# from .dqn_model import DQNAgent
 
 # Debugging packages
 import matplotlib as mpl
@@ -36,8 +36,8 @@ from matplotlib import pyplot as plt
 from tools.plots import DynamicPlot, DualDynamicPlot, DynamicScatterPlot
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-logger = logging.getLogger("autotvm")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# logger = logging.getLogger("autotvm")
 
 
 class Transition:
@@ -207,7 +207,7 @@ class GADQNTuner(Tuner):
         Calculate reward based on reward function chosen.
         """
         scale = 1e9
-        reward_multiplier = 3  # multiplier used for R3
+        reward_multiplier = 5  # multiplier used for R3
 
         if self.reward_function == RewardFunction.R1:
             return (self.initial_score - score) / scale

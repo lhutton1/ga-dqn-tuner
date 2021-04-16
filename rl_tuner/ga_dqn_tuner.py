@@ -172,7 +172,7 @@ class GADQNTuner(Tuner):
         Calculate reward based on reward function chosen.
         """
         scale = 1e9
-        reward_multiplier = 3  # multiplier used for R3
+        reward_multiplier = 5  # multiplier used for R3
 
         if self.reward_function == RewardFunction.R1:
             return (self.initial_score - score) / scale
