@@ -70,11 +70,11 @@ class GADQNTuner(Tuner):
                  learn_start=100,
                  target_update_frequency=200,
                  train_frequency=4,
-                 discount=0.99,
+                 discount=0.95,
                  epsilon_decay=0.99,
-                 agent_batch_size=32,
-                 hidden_sizes=(512, 128),
-                 learning_rate=5e-3,
+                 agent_batch_size=64,
+                 hidden_sizes=(256, 64),
+                 learning_rate=1e-3,
                  reward_function=RewardFunction.R3):
         super(GADQNTuner, self).__init__(task)
 
