@@ -69,12 +69,14 @@ def run_experiments(json_config):
 def _get_relay_convolution():
     """
     Create simply relay convolution.
+
+    C1 - as in report.
     """
     dtype = "float32"
-    shape = (1, 3, 8, 8)
+    shape = (1, 144, 28, 28)
     data = relay.var("data", shape=shape, dtype=dtype)
     weight = relay.var("weight")
-    out = relay.nn.conv2d(data, weight, channels=16, kernel_size=(3, 3), padding=(1, 1))
+    out = relay.nn.conv2d(data, weight, channels=32, kernel_size=(1, 1))
     net = relay.Function(relay.analysis.free_vars(out), out)
     return testing.create_workload(net)
 
@@ -221,7 +223,7 @@ def trial_parameters(save_path, save_name):
                    agent_batch_size,
                    hidden_sizes,
                    learning_rate]
-    trials = _generate_trials(trial_space)
+    trials = _generate_trials(trial_space, r_factor=5)
 
     for i, (ls, tuf, tf, d, ed, abs, hs, lr) in enumerate(trials):
         for j in range(repeat):
@@ -261,11 +263,11 @@ def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.
     learn_start = 100
     update_frequency = 200
     train_frequency = 4
-    discount = 0.99
+    discount = 0.95
     epsilon_decay = 0.99
-    agent_batch_size = 32
-    hidden_size = (256, 128)
-    learning_rate = 5e-3
+    agent_batch_size = 64
+    hidden_size = (256, 64)
+    learning_rate = 1e-3
 
     for i in range(trials):
         name = save_name + "_gadqn_trial=" + str(i)

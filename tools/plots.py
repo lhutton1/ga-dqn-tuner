@@ -213,6 +213,10 @@ def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_dat
     """
     Compares different reward functions against a ga bassline.
     """
+    figure, axes = plt.subplots()
+    axes.set_autoscalex_on(True)
+    axes.set_autoscaley_on(True)
+
     figure.suptitle(title)
     axes.set_xlabel(x_label)
     axes.set_ylabel(y_label)
@@ -247,6 +251,7 @@ def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_dat
     plt.show()
 
     figure.savefig(save_path + "/" + save_name + ".png")
+
 
 def grouped_bar_plot(results, xlabel, ylabel, title):
     """
