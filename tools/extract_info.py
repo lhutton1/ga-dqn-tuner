@@ -15,7 +15,7 @@ for i in range(12):
     low_score = 1e20
     high_score = 0
     for j in range(repeat):
-        with open(f"{EXTRACT_DIR}/test_gadqn_trial={i}_repeat={j}/params.json", "r") as f:
+        with open(f"{EXTRACT_DIR}/z_gadqn_trial={i}_repeat={j}/params.json", "r") as f:
             results = json.load(f)
         best_score = results["Best Score"]
         best_score_sum += best_score
