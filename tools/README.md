@@ -1,4 +1,4 @@
-# TVM Tools
+# Evaluation framework (TVM tools)
 Provides a series of tools and experiments to quickly test various tuning algorithms in AutoTVM. Use tune and benchmark commands on a series of pre-trained models to evaluate random, genetic algorithm, extreme gradient boost and GA-DQN algorithms. Use the experiment framework to evaluate various aspects of GA-DQN, with graphical monitoring.
 
 ## Driver
