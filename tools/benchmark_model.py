@@ -100,8 +100,8 @@ def compile_model(mod, params, target_string, tuning_records=None, model_name=""
     if tuning_records:
         model_str = "_model=" + model_name if model_name else ""
         tuning_records += model_str
-        if os.path.exists(tuning_records) 
-        print('applying tuning history...')
+        if os.path.exists(tuning_records):
+            print('applying tuning history...')
         with autotvm.apply_history_best(tuning_records):
             with tvm.transform.PassContext(opt_level=3):
                 graph_module = relay.build(mod, target, params=params, target_host=target_host)
