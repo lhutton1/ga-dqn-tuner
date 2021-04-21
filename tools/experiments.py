@@ -23,77 +23,110 @@ def run_experiments(json_config):
     config = json_config["experiments"]
     save_path = config["save_path"]
     save_name = config["save_name"]
-    names = config["names"]
 
+    # get experiments to run
+    names = config["names"]
     if not isinstance(names, list):
         raise ValueError("names of experiments must be specified as list")
 
-    # prevents ga/gadqn evaluation running twice when there are multiple experiments.
-    has_run_trial_ga = False
-    has_run_trial_gadqn = False
+    # get workloads to run experiments on. Default is C1
+    c1_workload = {
+        "name": "convolution1",
+        "type": "op"
+    }
+    workloads = json_config.get("models") or [c1_workload]
 
-    # run specified experiments
-    if "trial_hyperparameters" in names:
-        print("Running hyperparameter trial experiment for DQN with GA.")
-        trial_parameters(save_path, save_name)
-    if "trial_ga" in names:
-        print("Running ga tuner trial.")
-        trial_ga(save_path, save_name)
-        has_run_trial_ga = True
-    if "trial_gadqn" in names:
-        print("Running dqnga tuner trial.")
-        trial_gadqn(save_path, save_name)
-        has_run_trial_gadqn = True
-    if "compare_gadqn_ga" in names:
-        print("Comparing ga with gadqn.")
-        ga_results_dir = config.get("previous_results_dir") or None
-        no_trials = 10
-        if not has_run_trial_gadqn:
-            trial_gadqn(save_path, save_name, trials=no_trials)
-        if not has_run_trial_ga and not ga_results_dir:
+    for workload in workloads:
+        # prevents ga/gadqn evaluation running twice when there are multiple experiments.
+        has_run_trial_ga = False
+        has_run_trial_gadqn = False
+
+        # run specified experiments
+        if "trial_hyperparameters" in names:
+            print(f"Running hyperparameter trial experiment for DQN with GA on {workload['name']}.")
+            trial_parameters(save_path, save_name, workload)
+        if "trial_ga" in names:
+            print(f"Running ga tuner trial on {workload['name']}.")
+            trial_ga(save_path, save_name, workload)
+            has_run_trial_ga = True
+        if "trial_gadqn" in names:
+            print(f"Running dqnga tuner trial {workload['name']}.")
+            trial_gadqn(save_path, save_name, workload)
+            has_run_trial_gadqn = True
+        if "compare_gadqn_ga" in names:
+            print(f"Comparing ga with gadqn {workload['name']}.")
+            ga_results_dir = config.get("previous_results_dir") or None
+            no_trials = 10
+            if not has_run_trial_gadqn:
+                trial_gadqn(save_path, save_name, workload, trials=no_trials)
+            if not has_run_trial_ga and not ga_results_dir:
+                trial_ga(save_path, save_name, workload, trials=no_trials)
+
+            compare_gadqn_with_ga(save_path, save_name,
+                                expected_trials=no_trials, prev_results_dir=ga_results_dir)
+        if "compare_reward" in names:
+            print(f"Comparing reward functions {workload['name']}.")
+            no_trials = 5
+            for reward_function in RewardFunction:
+                trial_gadqn(save_path, save_name + f"_reward={reward_function}", workload, 
+                            trials=no_trials, reward_function=reward_function)
             trial_ga(save_path, save_name, trials=no_trials)
 
-        compare_gadqn_with_ga(save_path, save_name,
-                              expected_trials=no_trials, prev_results_dir=ga_results_dir)
-    if "compare_reward" in names:
-        print("Comparing reward functions.")
-        no_trials = 5
-        for reward_function in RewardFunction:
-            trial_gadqn(save_path, save_name + f"_reward={reward_function}", trials=no_trials,
-                        reward_function=reward_function)
-        trial_ga(save_path, save_name, trials=no_trials)
-
-        compare_reward_with_ga(save_path, save_name, expected_trials=no_trials)
+            compare_reward_with_ga(save_path, save_name, expected_trials=no_trials)
 
 
-def _get_relay_convolution():
-    """
-    Create simply relay convolution.
+def _get_relay_workload(workload):
+    assert workload["type"] == "op", "Only single workloads are supported in experiments."
+    workload_name = workload["name"]
 
-    C1 - as in report.
-    """
-    dtype = "float32"
-    shape = (1, 144, 28, 28)
-    data = relay.var("data", shape=shape, dtype=dtype)
-    weight = relay.var("weight")
-    out = relay.nn.conv2d(data, weight, channels=32, kernel_size=(1, 1))
-    net = relay.Function(relay.analysis.free_vars(out), out)
-    return testing.create_workload(net)
+    if workload_name == "convolution1":
+        dtype = "float32"
+        shape = (1, 144, 28, 28)
+        data = relay.var("data", shape=shape, dtype=dtype)
+        weight = relay.var("weight")
+        out = relay.nn.conv2d(data, weight, channels=32, kernel_size=(1, 1))
+        net = relay.Function(relay.analysis.free_vars(out), out)
+        return testing.create_workload(net)
+    elif workload_name == "convolution2":
+        dtype = "float32"
+        shape = (20, 16, 50, 100)
+        data = relay.var("data", shape=shape, dtype=dtype)
+        weight = relay.var("weight")
+        out = relay.nn.conv2d(data, weight, channels=32, kernel_size=(3, 3))
+        net = relay.Function(relay.analysis.free_vars(out), out)
+        return testing.create_workload(net)
+    elif workload_name == "matmul1":
+        dtype = "float32"
+        data = relay.var("data", shape=(100, 30, 40), dtype=dtype)
+        data2 = relay.var("data", shape=(1, 50, 40), dtype=dtype)
+        out = relay.nn.batch_matmul(data, data2)
+        net = relay.Function(relay.analysis.free_vars(out), out)
+        return testing.create_workload(net)
+    elif workload_name == "matmul2":
+        dtype = "float32"
+        data = relay.var("data", shape=(30, 30, 30), dtype=dtype)
+        data2 = relay.var("data", shape=(30, 30, 30), dtype=dtype)
+        out = relay.nn.batch_matmul(data, data2)
+        net = relay.Function(relay.analysis.free_vars(out), out)
+        return testing.create_workload(net)
+    else:
+        raise ValueError(f"Workload name {workload_name} not recognised.")
 
 
-def _test_convolution_with_dqnga(save_path,
-                                 save_name,
-                                 n_trial,
-                                 early_stopping,
-                                 learn_start,
-                                 update_frequency,
-                                 train_frequency,
-                                 discount,
-                                 epsilon_decay,
-                                 agent_batch_size,
-                                 hidden_sizes,
-                                 learning_rate,
-                                 reward_function=RewardFunction.R3):
+def _test_op_with_dqnga(save_path,
+                        save_name,
+                        workload_name,
+                        n_trial,
+                        early_stopping,
+                        learn_start,
+                        update_frequency,
+                        train_frequency,
+                        discount,
+                        epsilon_decay,
+                        agent_batch_size,
+                        hidden_sizes,
+                        learning_rate,
+                        reward_function=RewardFunction.R3):
     """
     Test a simple convolution using RLTuner.
     """
@@ -103,7 +136,7 @@ def _test_convolution_with_dqnga(save_path,
           f"ep decay: {epsilon_decay}, hidden sizes: {hidden_sizes},"
           f"agent batch size: {agent_batch_size}, learning rate: {learning_rate}")
 
-    mod, params = _get_relay_convolution()
+    mod, params = _get_relay_workload(workload_name)
     tasks = autotvm.task.extract_from_program(
         mod["main"],
         target=target,
@@ -131,14 +164,15 @@ def _test_convolution_with_dqnga(save_path,
     tuner_obj.save_model(save_path, save_name)
 
 
-def _test_convolution_with_ga(save_path,
-                              save_name,
-                              n_trial,
-                              early_stopping):
+def _test_op_with_ga(save_path,
+                     save_name,
+                     workload_name,
+                     n_trial,
+                     early_stopping):
     print(f"Running experiment with settings: n trial: {n_trial}, "
           f"early stopping: {early_stopping}")
 
-    mod, params = _get_relay_convolution()
+    mod, params = _get_relay_workload(workload_name)
     tasks = autotvm.task.extract_from_program(
         mod["main"],
         target=target,
@@ -189,7 +223,7 @@ def _generate_trials(space, r_factor=3):
     return trials
 
 
-def trial_parameters(save_path, save_name):
+def trial_parameters(save_path, save_name, workload_name):
     """
     Run a series of experiments for DQN with GA tuner.
 
@@ -228,11 +262,11 @@ def trial_parameters(save_path, save_name):
     for i, (ls, tuf, tf, d, ed, abs, hs, lr) in enumerate(trials):
         for j in range(repeat):
             name = save_name + f"_gadqn_trial={i}_repeat={j}"
-            _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
-                                         ls, tuf, tf, d, ed, abs, hs, lr, RewardFunction.R3)
+            _test_op_with_dqnga(save_path, name, workload_name, n_trial, early_stopping,
+                                ls, tuf, tf, d, ed, abs, hs, lr, RewardFunction.R3)
 
 
-def trial_ga(save_path, save_name, trials=10):
+def trial_ga(save_path, save_name, workload_name, trials=10):
     """
     Run a number of experiments for GA tuner.
 
@@ -245,10 +279,10 @@ def trial_ga(save_path, save_name, trials=10):
 
     for i in range(trials):
         name = save_name + "_ga_trial=" + str(i)
-        _test_convolution_with_ga(save_path, name, n_trial, early_stopping)
+        _test_op_with_ga(save_path, name, workload_name, n_trial, early_stopping)
 
 
-def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.R3):
+def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=RewardFunction.R3):
     """
     Run a number of experiments for GA-DQN tuner.
 
@@ -271,7 +305,7 @@ def trial_gadqn(save_path, save_name, trials=10, reward_function=RewardFunction.
 
     for i in range(trials):
         name = save_name + "_gadqn_trial=" + str(i)
-        _test_convolution_with_dqnga(save_path, name, n_trial, early_stopping,
+        _test_op_with_dqnga(save_path, name, workload_name, n_trial, early_stopping,
                                      learn_start, update_frequency, train_frequency,
                                      discount, epsilon_decay, agent_batch_size,
                                      hidden_size, learning_rate, reward_function)
@@ -309,9 +343,9 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
     # Create new graph displaying averages of both plots
     comparison_plot(save_path,
                     "best_score_comparison",
-                    "Best score comparison",
-                    "steps",
-                    "best score",
+                    f"Computational performance of {workload_name} as hardware measurements increase\non GA-DQN compared to GA",
+                    "Trial number (Hardware measurements)",
+                    "Best GigaFLOPS - Higher is better",
                     gadqn_tuning,
                     ga_tuning,
                     gadqn_steps,
@@ -354,9 +388,9 @@ def compare_reward_with_ga(save_path, save_name, expected_trials, prev_results_d
     # Create new graph displaying averages of both plots
     reward_comparison_plot(save_path,
                            "best_score_comparison",
-                           "Best score comparison",
-                           "steps",
-                           "best score",
+                           f"Computational performance of {workload_name} as hardware measurements increase\non varying reward functions.",
+                           "Trial number (Hardware measurements)",
+                           "Best GigaFLOPS - Higher is better",
                            gadqn_tuning,
                            ga_tuning,
                            gadqn_steps,

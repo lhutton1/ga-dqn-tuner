@@ -380,8 +380,8 @@ SEARCH_STRATEGY_BENCHMARK_RESULTS = {
         },
         {
             "name": "GA-DQN",
-            "data": "data": [(1.15, 1.12, 1.17), (1.23, 1.21, 1.25), (6.85, 6.78, 6.89), (0, 0, 0), (0, 0, 0)]
-        }
+            "data": [(1.15, 1.12, 1.17), (1.23, 1.21, 1.25), (6.85, 6.78, 6.89), (0, 0, 0), (0, 0, 0)]
+        },
         {
             "name": "XGB",
             "data": [(0.95, 0.91, 0.98), (1.3, 1.28, 1.35), (0, 0, 0), (7.63, 7.47, 7.71), (3.02, 3.0, 3.05)]
@@ -454,7 +454,7 @@ def get_hyperparameter_results_c1():
                          "Best GigaFLOPS - Higher is better",
                          "Computational performance of C1 after being tuned using GA-DQN with\nvarying hyper-parameters.",
                          (3.5, 5))
-     plt.show()
+    plt.show()
 
 def get_hyperparameter_results_mm1():
     """
