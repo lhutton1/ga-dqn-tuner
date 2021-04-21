@@ -2,13 +2,13 @@
 Provides a series of tools and experiments to quickly test various tuning algorithms in AutoTVM. Use tune and benchmark commands on a series of pre-trained models to evaluate random, genetic algorithm, extreme gradient boost and GA-DQN algorithms. Use the experiment framework to evaluate various aspects of GA-DQN, with graphical monitoring.
 
 ## Driver
-A command line driver for the set of tools. See `../run/` for convenient scripts that make use of the driver for particular setups.
+A command line driver for the set of tools. See `../tools/` for convenient scripts that make use of the driver for particular setups.
 
 Examples:
 ```bash
-rl-tuner/driver.py -m=tune -c=../config-example.json
-rl-tuner/driver.py -m=benchmark -c=../config-example.json
-rl-tuner/driver.py -m=experiment -c=../config-example.json
+python driver.py -m=tune -c=../config-example.json
+python driver.py -m=benchmark -c=../config-example.json
+python driver.py -m=experiment -c=../config-example.json
 ```
 
 Global config parameters:
