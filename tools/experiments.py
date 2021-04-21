@@ -236,7 +236,7 @@ def trial_parameters(save_path, save_name, workload_name):
     ---------------
     trial_hyperparameters
     """
-    n_trial = 2000
+    n_trial = 1000
     early_stopping = 1e9
     repeat = 3
 
