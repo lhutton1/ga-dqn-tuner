@@ -12,7 +12,7 @@ framework is provided to assess the performance of GA-DQN.
 ## Usage
 To use the tuner, TVM must be installed and visible within your python environment. Due to needing additional features not available in a released 
 version of TVM, a forked version of TVM is used which applies a small amount debugging code and a fix to the PyTorch front-end parser. A pinned
-version is also used as TVM is mostly in a development stage and the API's used are unstable. Consequently, the GA-DQN tuner has only beed tested
+version is also used as TVM is mostly in a development stage and the API's used are unstable. Consequently, the GA-DQN tuner has only been tested
 with this specific commit, along with small modifications ontop. The required version can be pulled from git like so:
 
 ```bash
