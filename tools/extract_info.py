@@ -1,7 +1,14 @@
+"""
+A simple script to extract the aveage best score, lowest score and highest score from
+a series of trials. Intended to be used after running the compare_gadqn_ga experiment. 
+"""
+
 import json
 
-EXTRACT_DIR = "tuning_results/experiment42"
+EXTRACT_DIR = "<path-to-experiment>"
 
+assert EXTRACT_DIR != "<path-to-experiment>", "please replace EXTRACT_DIR with your experiment path."
+    
 for i in range(12):
     repeat = 3
     best_score_sum = 0
