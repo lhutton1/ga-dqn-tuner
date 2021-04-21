@@ -274,14 +274,25 @@ def grouped_bar_plot(results, xlabel, ylabel, title):
         x_offset = (i - n_bars / 2) * bar_width + bar_width / 2
 
         for x, y in enumerate(strategy["data"]):
-            bar = axes.bar(x + x_offset, 
-                           y, 
-                           width=bar_width * single_width, 
-                           color=colors[i % len(colors)])
+            if isinstance(y, tuple):
+                error = np.array([[y[0] - y[1]], [y[2] - y[0]]])
+                bar = axes.bar(x + x_offset,
+                               y[0],
+                               yerr=error,
+                               width=bar_width * single_width,
+                               color=colors[i % len(colors)],
+                               ecolor='black', capsize=2)
+            else:
+                bar = axes.bar(x + x_offset,
+                               y,
+                               width=bar_width * single_width,
+                               color=colors[i % len(colors)])
 
         bars.append(bar[0])
 
-    axes.set_title(title)
+    # hack to add subtitle
+    figure.suptitle(title, fontsize=10)
+    axes.set_title(subtitle, fontsize=8)
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
     axes.set_xticks(np.arange(len(results["ticks"])))
@@ -289,13 +300,53 @@ def grouped_bar_plot(results, xlabel, ylabel, title):
     axes.legend(bars, [s["name"] for s in results["strategies"]])
 
 
+def hyper_param_bar_plot(results, xlabel, ylabel, title, limits):
+    """
+    A bar plot for comparing hyperparameter results.
+    """
+    figure, axes = plt.subplots()
+
+    axes.set_autoscalex_on(True)
+    axes.set_autoscaley_on(True)
+
+    n_bars = len(results["data"])
+    bar_color = plt.rcParams['axes.prop_cycle'].by_key()['color'][0]
+
+    total_width = 0.8
+    single_width = 1
+    bar_width = total_width / n_bars
+
+    bars = []
+
+    for x, y in enumerate(results["data"]):
+        color = 'red' if x == len(results["data"]) - 1 else bar_color
+        error = np.array([[y[0] - y[1]], [y[2] - y[0]]])
+        bar = axes.bar(x,
+                       y[0],
+                       yerr=error,
+                       color=color,
+                       ecolor='black', capsize=2)
+        bars.append(bar[0])
+
+    axes.set_ylim(*limits)
+
+    axes.set_title(title)
+    axes.set_xlabel(xlabel)
+    axes.set_ylabel(ylabel)
+    axes.set_xticks(np.arange(len(results["ticks"])))
+    axes.set_xticklabels(results["ticks"])
+
+
 
 """
 A series of predefined results used in the report.
+
+All values are obtained from experiments using the
+evaluation framework on ARC3 GPGPU node.
 """
 
 SEARCH_STRATEGY_TUNING_RESULTS = {
-    "ticks":    ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
+    "ticks": ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
     "strategies": [
         {
             "name": "Random",
@@ -306,6 +357,10 @@ SEARCH_STRATEGY_TUNING_RESULTS = {
             "data": [289.41617, 163.81917, 548.72333, 45.44617, 145.0955]
         },
         {
+            "name": "GA-DQN",
+            "data": [321.35831, 201.28831, 613.25113, 54.3993, 157.30796]
+        },
+        {
             "name": "XGB",
             "data": [277.43417, 204.20383, 0.0, 41.42767, 85.39717]
         }
@@ -313,23 +368,55 @@ SEARCH_STRATEGY_TUNING_RESULTS = {
 }
 
 SEARCH_STRATEGY_BENCHMARK_RESULTS = {
-    "ticks":    ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
+    "ticks": ["Mobilenet v2", "Resnet 18", "Inception v3", "BERT", "Transformer"],
     "strategies": [
         {
             "name": "Random",
-            "data": [0.00282, 0.00133, 0.00857, 0.00778, 0.0039]
+            "data": [(2.82, 2.76, 2.84), (1.33, 1.31, 1.36), (8.57, 8.54, 8.61), (7.78, 7.64, 7.87), (3.9, 3.81, 4.01)]
         },
         {
             "name": "GA",
-            "data": [0.00109, 0.00137, 0.0072, 0.00536, 0.00318]
+            "data": [(1.09, 1.04, 1.12), (1.37, 1.32, 1.42), (7.2, 7.13, 7.37), (5.36, 5.21, 5.69), (3.18, 3.13, 3.21)]
         },
         {
+            "name": "GA-DQN",
+            "data": "data": [(1.15, 1.12, 1.17), (1.23, 1.21, 1.25), (6.85, 6.78, 6.89), (0, 0, 0), (0, 0, 0)]
+        }
+        {
             "name": "XGB",
-            "data": [0.00095, 0.0013, 0, 0.00763, 0.00302]
+            "data": [(0.95, 0.91, 0.98), (1.3, 1.28, 1.35), (0, 0, 0), (7.63, 7.47, 7.71), (3.02, 3.0, 3.05)]
         },
         {
             "name": "PyTorch",
-            "data": [0.00564, 0.00237, 0.01193, 0.00811, 0.00159]
+            "data": [(5.64, 5.62, 5.65), (2.37, 2.34, 2.39), (11.93, 11.85, 12.04), (8.11, 7.65, 8.43), (1.59, 1.49, 1.63)]
+        }
+    ]
+}
+
+HYPER_PARAMETER_TRIALS_C1 = {
+    "ticks": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "GA"],
+    "data": [(4.016, 3.834, 4.234), (4.230, 4.040, 4.413), (4.159, 3.976, 4.282), (4.406, 4.303, 4.592), (4.706, 4.572, 4.804),
+             (3.974, 3.725, 4.172), (4.322, 4.125, 4.498), (4.300, 4.168, 4.447), (4.794, 4.703, 4.863), (4.253, 4.215, 4.302),
+             (4.683, 4.635, 4.717), (4.609, 4.369, 4.794), (4.254, 4.123, 4.337)]
+}
+
+HYPER_PARAMETER_TRIALS_MM1 = {
+    "ticks": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "GA"],
+    "data": [(361.49, 357.32, 369.24), (383.61, 372.75, 389.38), (368.52, 354.55, 371.32), (363.38, 353.18, 370.27), (383.52, 375.19, 389.46),
+             (365.43, 355.39, 369.21), (353.26, 343.32, 361.42), (362.42, 357.29, 368.03), (391.57, 384.72, 395.31), (360.20, 353.54, 365.94),
+             (389.26, 382.59, 393.08), (388.32, 379.17, 393.92), (359.01, 351.32, 366.02)]
+}
+
+SINGLE_OPERATOR_RESULTS = {
+    "ticks": ["C1", "C2", "MM1", "MM2"],
+    "strategies": [
+        {
+            "name": "GA",
+            "data": []
+        },
+        {
+            "name": "GA-DQN",
+            "data": []
         }
     ]
 }
@@ -342,7 +429,8 @@ def get_search_strategy_tuning_results():
     grouped_bar_plot(SEARCH_STRATEGY_TUNING_RESULTS, 
                      "Workload", 
                      "Time (mins) - Lower is better", 
-                     "Tuning time of different search strategies on different workloads.")
+                     "Tuning time of different search strategies on different workloads.",
+                     "Completed on ARC3 GPGPU node with tuning settings, early stopping: 250, repeat: 5, trials: 1000")
     plt.show()
 
 
@@ -352,6 +440,29 @@ def get_search_strategy_benchmark_results():
     """
     grouped_bar_plot(SEARCH_STRATEGY_BENCHMARK_RESULTS, 
                      "Workload", 
-                     "Time (seconds) - Lower is better", 
-                     "Execution time of different workloads after being tuned.")
+                     "Time (milliseconds) - Lower is better",
+                     "Execution time of different workloads after being tuned.",
+                     "Completed on ARC3 GPGPU node after with tuning settings, early stopping: 250, repeat: 5, trials: 1000")
+    plt.show()
+
+def get_hyperparameter_results_c1():
+    """
+    Quick helper function to get hyperparameter results on C1.
+    """
+    hyper_param_bar_plot(HYPER_PARAMETER_TRIALS_C1,
+                         "Hyper-parameter configuration",
+                         "Best GigaFLOPS - Higher is better",
+                         "Computational performance of C1 after being tuned using GA-DQN with\nvarying hyper-parameters.",
+                         (3.5, 5))
+     plt.show()
+
+def get_hyperparameter_results_mm1():
+    """
+    Quick helper function to get hyperparameter results on MM1.
+    """
+    hyper_param_bar_plot(HYPER_PARAMETER_TRIALS_MM1,
+                         "Hyper-parameter configuration",
+                         "Best GigaFLOPS - Higher is better",
+                         "Computational performance of MM1 after being tuned using GA-DQN with\nvarying hyper-parameters.",
+                         (320, 400))
     plt.show()
