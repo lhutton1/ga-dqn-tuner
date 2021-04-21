@@ -98,8 +98,10 @@ def compile_model(mod, params, target_string, tuning_records=None, model_name=""
     target_host = "llvm"
 
     if tuning_records:
-        model_str = "_model=" + model_name if model_name else ""
-        tuning_records += model_str
+        if model_name:
+            model_str = "_model=" + model_name + ".json"
+            tuning_records = tuning_records[:-5]
+            tuning_records += model_str
         if os.path.exists(tuning_records):
             print('applying tuning history...')
         with autotvm.apply_history_best(tuning_records):
