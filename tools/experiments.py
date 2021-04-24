@@ -62,7 +62,7 @@ def run_experiments(json_config):
             if not has_run_trial_ga and not ga_results_dir:
                 trial_ga(save_path, save_name, workload, trials=no_trials)
 
-            compare_gadqn_with_ga(save_path, save_name,
+            compare_gadqn_with_ga(save_path, save_name, workload,
                                 expected_trials=no_trials, prev_results_dir=ga_results_dir)
         if "compare_reward" in names:
             print(f"Comparing reward functions {workload['name']}.")
@@ -72,7 +72,7 @@ def run_experiments(json_config):
                             trials=no_trials, reward_function=reward_function)
             trial_ga(save_path, save_name, trials=no_trials)
 
-            compare_reward_with_ga(save_path, save_name, expected_trials=no_trials)
+            compare_reward_with_ga(save_path, save_name, workload, expected_trials=no_trials)
 
 
 def _get_relay_workload(workload):
@@ -311,7 +311,7 @@ def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=
                                      hidden_size, learning_rate, reward_function)
 
 
-def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_dir=None):
+def compare_gadqn_with_ga(save_path, save_name, workload_name, expected_trials, prev_results_dir=None):
     """
     Compare iterations of ga with iterations of its dqn counterpart.
     Average and log these results in a graph.
@@ -352,7 +352,7 @@ def compare_gadqn_with_ga(save_path, save_name, expected_trials, prev_results_di
                     ga_steps)
 
 
-def compare_reward_with_ga(save_path, save_name, expected_trials, prev_results_dir=None):
+def compare_reward_with_ga(save_path, save_name, workload_name, expected_trials, prev_results_dir=None):
     """
     Compare iterations of ga with iterations of its dqn counterpart.
     Average and log these results in a graph.
