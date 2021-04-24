@@ -154,7 +154,9 @@ class GADQNTuner(Tuner):
 
     def initialise_debugging(self):
         """
-        Start the tuner with debugging.
+        Start the tuner with debugging. This creates a series of dynamic
+        graphs, along with new class variables to maintain information
+        that the graphs require.
         """
         # Monitoring plots
         plt.ion()
@@ -328,7 +330,8 @@ class GADQNTuner(Tuner):
 
     def crossover_update(self, n_parallel, measure_batch, callbacks):
         """
-        Perform RL crossover on the population.
+        Update the rl-crossover DQN using information obtained from hardware
+        measurements.
         """
         # Calculate crossover probabilities based on whole population
         scores = np.array([t.score for t in self.population])
@@ -374,7 +377,7 @@ class GADQNTuner(Tuner):
 
     def measure_configs(self, transitions, n_parallel, measure_batch, callbacks):
         """
-        Measure results for current population.
+        Measure results for current population on hardware.
         """
         for i in range(ceil(len(transitions) / n_parallel)):
             configs = []
@@ -419,7 +422,8 @@ class GADQNTuner(Tuner):
 
     def save_model(self, save_path, save_name):
         """
-        Save model to file.
+        Save model to file. In debugging, all graphs are also saved under the same
+        directory.
         """
         abs_path = Path(save_path + save_name).resolve()
         abs_path.mkdir(exist_ok=True, parents=True)
