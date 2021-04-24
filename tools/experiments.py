@@ -70,7 +70,7 @@ def run_experiments(json_config):
             for reward_function in RewardFunction:
                 trial_gadqn(save_path, save_name + f"_reward={reward_function}", workload, 
                             trials=no_trials, reward_function=reward_function)
-            trial_ga(save_path, save_name, trials=no_trials)
+            trial_ga(save_path, save_name, workload, trials=no_trials)
 
             compare_reward_with_ga(save_path, save_name, workload, expected_trials=no_trials)
 
@@ -223,7 +223,7 @@ def _generate_trials(space, r_factor=3):
     return trials
 
 
-def trial_parameters(save_path, save_name, workload_name):
+def trial_parameters(save_path, save_name, workload):
     """
     Run a series of experiments for DQN with GA tuner.
 
@@ -262,11 +262,11 @@ def trial_parameters(save_path, save_name, workload_name):
     for i, (ls, tuf, tf, d, ed, abs, hs, lr) in enumerate(trials):
         for j in range(repeat):
             name = save_name + f"_gadqn_trial={i}_repeat={j}"
-            _test_op_with_dqnga(save_path, name, workload_name, n_trial, early_stopping,
+            _test_op_with_dqnga(save_path, name, workload, n_trial, early_stopping,
                                 ls, tuf, tf, d, ed, abs, hs, lr, RewardFunction.R3)
 
 
-def trial_ga(save_path, save_name, workload_name, trials=10):
+def trial_ga(save_path, save_name, workload, trials=10):
     """
     Run a number of experiments for GA tuner.
 
@@ -279,7 +279,7 @@ def trial_ga(save_path, save_name, workload_name, trials=10):
 
     for i in range(trials):
         name = save_name + "_ga_trial=" + str(i)
-        _test_op_with_ga(save_path, name, workload_name, n_trial, early_stopping)
+        _test_op_with_ga(save_path, name, workload, n_trial, early_stopping)
 
 
 def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=RewardFunction.R3):
@@ -311,7 +311,7 @@ def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=
                                      hidden_size, learning_rate, reward_function)
 
 
-def compare_gadqn_with_ga(save_path, save_name, workload_name, expected_trials, prev_results_dir=None):
+def compare_gadqn_with_ga(save_path, save_name, workload, expected_trials, prev_results_dir=None):
     """
     Compare iterations of ga with iterations of its dqn counterpart.
     Average and log these results in a graph.
@@ -343,7 +343,7 @@ def compare_gadqn_with_ga(save_path, save_name, workload_name, expected_trials, 
     # Create new graph displaying averages of both plots
     comparison_plot(save_path,
                     "best_score_comparison",
-                    f"Computational performance of {workload_name} as hardware measurements increase\non GA-DQN compared to GA",
+                    f"Computational performance of {workload['name']} as hardware measurements increase\non GA-DQN compared to GA",
                     "Trial number (Hardware measurements)",
                     "Best GigaFLOPS - Higher is better",
                     gadqn_tuning,
@@ -352,7 +352,7 @@ def compare_gadqn_with_ga(save_path, save_name, workload_name, expected_trials, 
                     ga_steps)
 
 
-def compare_reward_with_ga(save_path, save_name, workload_name, expected_trials, prev_results_dir=None):
+def compare_reward_with_ga(save_path, save_name, workload, expected_trials, prev_results_dir=None):
     """
     Compare iterations of ga with iterations of its dqn counterpart.
     Average and log these results in a graph.
@@ -388,7 +388,7 @@ def compare_reward_with_ga(save_path, save_name, workload_name, expected_trials,
     # Create new graph displaying averages of both plots
     reward_comparison_plot(save_path,
                            "best_score_comparison",
-                           f"Computational performance of {workload_name} as hardware measurements increase\non varying reward functions.",
+                           f"Computational performance of {workload['name']} as hardware measurements increase\non varying reward functions.",
                            "Trial number (Hardware measurements)",
                            "Best GigaFLOPS - Higher is better",
                            gadqn_tuning,
