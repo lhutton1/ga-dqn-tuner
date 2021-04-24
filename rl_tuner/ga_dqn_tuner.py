@@ -321,7 +321,6 @@ class GADQNTuner(Tuner):
         """
         Measure results for current population.
         """
-        # Iterate ceil(no.self.transitions / n_parallel) number of times
         for i in range(ceil(len(transitions) / n_parallel)):
             configs = []
             batch_size = min(n_parallel, len(transitions) - (i * n_parallel))
@@ -360,7 +359,7 @@ class GADQNTuner(Tuner):
 
     def save_model(self, save_path, save_name):
         """
-        Save model to file.
+        Save model to file, at 'save_path/save_name'.
         """
         abs_path = Path(save_path + save_name).resolve()
         abs_path.mkdir(exist_ok=True, parents=True)
