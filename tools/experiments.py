@@ -76,6 +76,11 @@ def run_experiments(json_config):
 
 
 def _get_relay_workload(workload):
+    """
+    Get the workload determined by the JSON configuration 'model' parameter.
+    If no such workload is found, or the paramter value specified is not a 
+    single workload, then an exception is raised.
+    """
     assert workload["type"] == "op", "Only single workloads are supported in experiments."
     workload_name = workload["name"]
 
@@ -128,7 +133,7 @@ def _test_op_with_dqnga(save_path,
                         learning_rate,
                         reward_function=RewardFunction.R3):
     """
-    Test a simple convolution using RLTuner.
+    Test a specified single workload using RLTuner.
     """
     print(f"Running experiment with settings: n trial: {n_trial}, "
           f"early stopping: {early_stopping}, learn start: {learn_start}, "
@@ -169,6 +174,9 @@ def _test_op_with_ga(save_path,
                      workload_name,
                      n_trial,
                      early_stopping):
+    """
+    Test a specified single workload with GA tuner.
+    """
     print(f"Running experiment with settings: n trial: {n_trial}, "
           f"early stopping: {early_stopping}")
 
@@ -268,7 +276,7 @@ def trial_parameters(save_path, save_name, workload):
 
 def trial_ga(save_path, save_name, workload, trials=10):
     """
-    Run a number of experiments for GA tuner.
+    Run a number of experiments using GA tuner.
 
     Experiment Name
     ---------------
@@ -284,7 +292,7 @@ def trial_ga(save_path, save_name, workload, trials=10):
 
 def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=RewardFunction.R3):
     """
-    Run a number of experiments for GA-DQN tuner.
+    Run a number of experiments using GA-DQN tuner.
 
     Experiment Name
     ---------------
@@ -313,7 +321,7 @@ def trial_gadqn(save_path, save_name, workload_name, trials=10, reward_function=
 
 def compare_gadqn_with_ga(save_path, save_name, workload, expected_trials, prev_results_dir=None):
     """
-    Compare iterations of ga with iterations of its dqn counterpart.
+    Compare iterations of ga with iterations of its DQN counterpart.
     Average and log these results in a graph.
 
     Experiment Name
@@ -354,7 +362,7 @@ def compare_gadqn_with_ga(save_path, save_name, workload, expected_trials, prev_
 
 def compare_reward_with_ga(save_path, save_name, workload, expected_trials, prev_results_dir=None):
     """
-    Compare iterations of ga with iterations of its dqn counterpart.
+    Compare iterations of ga with iterations of its DQN counterpart.
     Average and log these results in a graph.
 
     Experiment Name
