@@ -351,7 +351,7 @@ def compare_gadqn_with_ga(save_path, save_name, workload, expected_trials, prev_
     # Create new graph displaying averages of both plots
     comparison_plot(save_path,
                     "best_score_comparison",
-                    f"Computational performance of {workload['name']} as hardware measurements increase\non GA-DQN compared to GA",
+                    f"Computational performance of {workload['name']} as hardware measurements\nincrease on GA-DQN compared to GA",
                     "Trial number (Hardware measurements)",
                     "Best GigaFLOPS - Higher is better",
                     gadqn_tuning,
@@ -396,7 +396,7 @@ def compare_reward_with_ga(save_path, save_name, workload, expected_trials, prev
     # Create new graph displaying averages of both plots
     reward_comparison_plot(save_path,
                            "best_score_comparison",
-                           f"Computational performance of {workload['name']} as hardware measurements increase\non varying reward functions.",
+                           f"Computational performance of {workload['name']} as hardware measurements\nincrease on varying reward functions.",
                            "Trial number (Hardware measurements)",
                            "Best GigaFLOPS - Higher is better",
                            gadqn_tuning,

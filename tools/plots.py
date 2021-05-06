@@ -192,12 +192,12 @@ def comparison_plot(save_path, save_name, title, x_label, y_label, y1_data, y2_d
 
     scores_stack_1 = np.dstack(tuple(x for x in y1_data))[0]
     avg_scores_1 = np.mean(scores_stack_1, axis=1)
-    min_scores_1 = np.percentile(scores_stack_1, 10, axis=1)
-    max_scores_1 = np.percentile(scores_stack_1, 90, axis=1)
+    min_scores_1 = np.percentile(scores_stack_1, 25, axis=1)
+    max_scores_1 = np.percentile(scores_stack_1, 75, axis=1)
     scores_stack_2 = np.dstack(tuple(x for x in y2_data))[0]
     avg_scores_2 = np.mean(scores_stack_2, axis=1)
-    min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
-    max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
+    min_scores_2 = np.percentile(scores_stack_2, 25, axis=1)
+    max_scores_2 = np.percentile(scores_stack_2, 75, axis=1)
 
     plt.plot(x1_data, avg_scores_1, '-r', label="ga-dqn")
     plt.fill_between(x1_data, min_scores_1, max_scores_1, facecolor=(1, 0, 0, .3))
@@ -228,13 +228,13 @@ def reward_comparison_plot(save_path, save_name, title, x_label, y_label, y1_dat
     for reward_data in y1_data:
         scores_stack_1 = np.dstack(tuple(x for x in reward_data))[0]
         reward_avg_scores.append(np.mean(scores_stack_1, axis=1))
-        reward_min_scores.append(np.percentile(scores_stack_1, 10, axis=1))
-        reward_max_scores.append(np.percentile(scores_stack_1, 90, axis=1))
+        reward_min_scores.append(np.percentile(scores_stack_1, 25, axis=1))
+        reward_max_scores.append(np.percentile(scores_stack_1, 75, axis=1))
 
     scores_stack_2 = np.dstack(tuple(x for x in y2_data))[0]
     avg_scores_2 = np.mean(scores_stack_2, axis=1)
-    min_scores_2 = np.percentile(scores_stack_2, 10, axis=1)
-    max_scores_2 = np.percentile(scores_stack_2, 90, axis=1)
+    min_scores_2 = np.percentile(scores_stack_2, 25, axis=1)
+    max_scores_2 = np.percentile(scores_stack_2, 75, axis=1)
 
     for reward_idx in range(len(y1_data)):
         p = plt.plot(x1_data, reward_avg_scores[reward_idx], label=f"ga-dqn-R{reward_idx+1}")
@@ -291,8 +291,7 @@ def grouped_bar_plot(results, xlabel, ylabel, title):
         bars.append(bar[0])
 
     # hack to add subtitle
-    figure.suptitle(title, fontsize=10)
-    axes.set_title(subtitle, fontsize=8)
+    axes.set_title(title)
     axes.set_xlabel(xlabel)
     axes.set_ylabel(ylabel)
     axes.set_xticks(np.arange(len(results["ticks"])))
@@ -353,7 +352,7 @@ SEARCH_STRATEGY_TUNING_RESULTS = {
             "data": [205.36633, 145.87233, 445.783, 23.747, 92.92367]
         },
         {
-            "name": "GA",
+            "name": "Genetic algorithm",
             "data": [289.41617, 163.81917, 548.72333, 45.44617, 145.0955]
         },
         {
@@ -361,7 +360,7 @@ SEARCH_STRATEGY_TUNING_RESULTS = {
             "data": [321.35831, 201.28831, 613.25113, 54.3993, 157.30796]
         },
         {
-            "name": "XGB",
+            "name": "XGBoost",
             "data": [277.43417, 204.20383, 0.0, 41.42767, 85.39717]
         }
     ]
@@ -375,15 +374,15 @@ SEARCH_STRATEGY_BENCHMARK_RESULTS = {
             "data": [(2.82, 2.76, 2.84), (1.33, 1.31, 1.36), (8.57, 8.54, 8.61), (7.78, 7.64, 7.87), (3.9, 3.81, 4.01)]
         },
         {
-            "name": "GA",
-            "data": [(1.09, 1.04, 1.12), (1.37, 1.32, 1.42), (7.2, 7.13, 7.37), (5.36, 5.21, 5.69), (3.18, 3.13, 3.21)]
+            "name": "Genetic algorithm",
+            "data": [(1.09, 1.04, 1.12), (1.37, 1.32, 1.42), (7.20, 7.13, 7.37), (5.36, 5.21, 5.69), (3.18, 3.13, 3.21)]
         },
         {
             "name": "GA-DQN",
-            "data": [(1.15, 1.12, 1.17), (1.23, 1.21, 1.25), (6.85, 6.78, 6.89), (0, 0, 0), (0, 0, 0)]
+            "data": [(1.05, 1.01, 1.08), (1.23, 1.21, 1.25), (7.55, 7.47, 7.64), (5.45, 5.29, 5.57), (3.26, 3.16, 3.33)]
         },
         {
-            "name": "XGB",
+            "name": "XGBoost",
             "data": [(0.95, 0.91, 0.98), (1.3, 1.28, 1.35), (0, 0, 0), (7.63, 7.47, 7.71), (3.02, 3.0, 3.05)]
         },
         {
@@ -395,30 +394,16 @@ SEARCH_STRATEGY_BENCHMARK_RESULTS = {
 
 HYPER_PARAMETER_TRIALS_C1 = {
     "ticks": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "GA"],
-    "data": [(4.016, 3.834, 4.234), (4.230, 4.040, 4.413), (4.159, 3.976, 4.282), (4.406, 4.303, 4.592), (4.706, 4.572, 4.804),
-             (3.974, 3.725, 4.172), (4.322, 4.125, 4.498), (4.300, 4.168, 4.447), (4.794, 4.703, 4.863), (4.253, 4.215, 4.302),
-             (4.683, 4.635, 4.717), (4.609, 4.369, 4.794), (4.254, 4.123, 4.337)]
+    "data": [(353.3, 338.2, 361.4), (351.1, 335.32, 366.3), (345.2, 330.0, 355.4), (365.7, 357.1, 381.6), (390.6, 379.5, 398.7),
+             (349.8, 337.2, 356.3), (358.7, 342.375, 373.3), (356.9, 345.9, 369.1), (393.9, 386.35, 401.6), (353.0, 349.8, 357.1),
+             (388.7, 384.7, 391.5), (382.5, 362.6, 397.9), (363.1, 352.2, 370.0)]
 }
 
 HYPER_PARAMETER_TRIALS_MM1 = {
     "ticks": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "GA"],
-    "data": [(361.49, 357.32, 369.24), (383.61, 372.75, 389.38), (368.52, 354.55, 371.32), (363.38, 353.18, 370.27), (383.52, 375.19, 389.46),
-             (365.43, 355.39, 369.21), (353.26, 343.32, 361.42), (362.42, 357.29, 368.03), (391.57, 384.72, 395.31), (360.20, 353.54, 365.94),
-             (389.26, 382.59, 393.08), (388.32, 379.17, 393.92), (359.01, 351.32, 366.02)]
-}
-
-SINGLE_OPERATOR_RESULTS = {
-    "ticks": ["C1", "C2", "MM1", "MM2"],
-    "strategies": [
-        {
-            "name": "GA",
-            "data": []
-        },
-        {
-            "name": "GA-DQN",
-            "data": []
-        }
-    ]
+    "data": [(727.7, 719.6, 732.6), (730.4, 724.8, 736.5), (721.2, 718.3, 726.6), (718.3, 716.6, 721.6), (730.2, 724.1, 737.7),
+             (725.3, 718.0, 729.6), (716.8, 713.6, 722.5), (722.4, 717.6, 728.3), (735.7, 728.5, 740.9), (719.2, 715.3, 724.2),
+             (732.3, 728.4, 735.6), (733.5, 730.8, 737.3), (720.2, 713.7, 726.5)]
 }
 
 
@@ -429,8 +414,7 @@ def get_search_strategy_tuning_results():
     grouped_bar_plot(SEARCH_STRATEGY_TUNING_RESULTS, 
                      "Workload", 
                      "Time (mins) - Lower is better", 
-                     "Tuning time of different search strategies on different workloads.",
-                     "Completed on ARC3 GPGPU node with tuning settings, early stopping: 250, repeat: 5, trials: 1000")
+                     "Tuning time of different search strategies on different workloads.")
     plt.show()
 
 
@@ -441,8 +425,7 @@ def get_search_strategy_benchmark_results():
     grouped_bar_plot(SEARCH_STRATEGY_BENCHMARK_RESULTS, 
                      "Workload", 
                      "Time (milliseconds) - Lower is better",
-                     "Execution time of different workloads after being tuned.",
-                     "Completed on ARC3 GPGPU node after with tuning settings, early stopping: 250, repeat: 5, trials: 1000")
+                     "Execution time of different workloads after being tuned.")
     plt.show()
 
 def get_hyperparameter_results_c1():
@@ -453,7 +436,7 @@ def get_hyperparameter_results_c1():
                          "Hyper-parameter configuration",
                          "Best GigaFLOPS - Higher is better",
                          "Computational performance of C1 after being tuned using GA-DQN with\nvarying hyper-parameters.",
-                         (3.5, 5))
+                         (320, 410))
     plt.show()
 
 def get_hyperparameter_results_mm1():
@@ -464,5 +447,5 @@ def get_hyperparameter_results_mm1():
                          "Hyper-parameter configuration",
                          "Best GigaFLOPS - Higher is better",
                          "Computational performance of MM1 after being tuned using GA-DQN with\nvarying hyper-parameters.",
-                         (320, 400))
+                         (710, 745))
     plt.show()
