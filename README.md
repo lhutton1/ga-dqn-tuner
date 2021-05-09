@@ -1,4 +1,4 @@
-# Using reinforcement learning to automatically optimise machine learning workloads
+# Generating high-performance code for deep learning workloads: a reinforcement learning based approach.
 
 This project aims to apply reinforcement learning to auto-tuning in AutoTVM (part of the TVM machine learning compiler),
 in order to improve the experience of the end user. Currently, reinforcement learning is applied to the GATuner - a genetic algorithm
