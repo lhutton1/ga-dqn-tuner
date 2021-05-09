@@ -1,5 +1,7 @@
 # Generating high-performance code for deep learning workloads: a reinforcement learning based approach.
 
+_Implemented as part of a final year dissertation. Should not be considered for production use._
+
 This project aims to apply reinforcement learning to auto-tuning in AutoTVM (part of the TVM machine learning compiler),
 in order to improve the experience of the end user. Currently, reinforcement learning is applied to the GATuner - a genetic algorithm
 that repeatedly applies elitism, 2-point crossover and mutation to a population. Named **GA-DQN**, the new tuner uses two independent 
