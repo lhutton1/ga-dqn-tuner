@@ -49,8 +49,6 @@ def tune_model(mod, params, tune_settings, target, model_name):
             tuner_obj = XGBTuner(tsk, loss_type="rank")
         elif tuner == "xgb_knob":
             tuner_obj = XGBTuner(tsk, loss_type="rank", feature_type="knob")
-        elif tuner == "xgb-rl":
-            tuner_obj = XGBTuner(tsk, loss_type="rank", optimizer="rl")
         elif tuner == "ga":
             tuner_obj = GATuner(tsk, pop_size=50)
         elif tuner == "random":
