@@ -69,3 +69,6 @@ python driver.py -m=benchmark -c=../config-example.json
 python driver.py -m=experiment -c=../config-example.json
 ```
 
+## GA-DQN pipeline example
+![GA-DQN pipeline example](/assets/ga-dqn-example.png "GA-DQN pipeline example")
+
